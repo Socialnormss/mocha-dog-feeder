@@ -82,7 +82,6 @@
     .sec-toggle:active { opacity: .7; }
     .st-arrow { font-size: 1rem; transition: transform .2s; display: inline-block; }
     .st-arrow.open { transform: rotate(90deg); }
-    .nutr-section { overflow: hidden; }
 
     /* ── Notes card ──────────────────────────── */
     .notes-card {
@@ -793,6 +792,68 @@
     .db-mstat span { font-size: .7rem; color: var(--t2); }
     html.dark .dash-card { box-shadow: none; }
     html.dark .dash-tab.active { background: rgba(212,165,116,.12); }
+
+    /* ── Toast ──────────────────────────────────── */
+    .toast {
+      position: fixed; left: 50%; bottom: calc(var(--navh) + env(safe-area-inset-bottom,0px) + 14px);
+      transform: translateX(-50%) translateY(12px);
+      background: #2C1810; color: #FAF5EE;
+      padding: 11px 22px; border-radius: 100px;
+      font-size: .85rem; font-weight: 600; white-space: nowrap;
+      opacity: 0; transition: opacity .25s, transform .25s;
+      z-index: 500; pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.toast-ok   { background: #2E7A52; color: #fff; }
+    .toast.toast-err  { background: var(--err); color: #fff; }
+    .toast.toast-warn { background: var(--warn); color: #fff; }
+    html.dark .toast  { background: #fff; color: #2C1810; }
+    html.dark .toast.toast-ok   { background: var(--ok); color: #000; }
+    html.dark .toast.toast-err  { background: var(--err); }
+    html.dark .toast.toast-warn { background: var(--warn); }
+
+    /* ── Confirm Sheet ───────────────────────────── */
+    .confirm-sheet { border-radius: 22px 22px 0 0; }
+    .confirm-icon { font-size: 2.2rem; text-align: center; margin: 4px 0 10px; }
+    .confirm-msg  { font-size: .95rem; font-weight: 600; text-align: center; color: var(--t1); line-height: 1.5; margin-bottom: 20px; white-space: pre-line; }
+    .confirm-btns { display: flex; gap: 10px; }
+    .confirm-yes  { flex: 1.5; }
+    .confirm-danger { background: var(--err) !important; }
+
+    /* ── PIN Dialog ──────────────────────────────── */
+    .pin-sheet { border-radius: 22px 22px 0 0; }
+    .pin-dots { display: flex; justify-content: center; gap: 14px; margin: 16px 0 8px; }
+    .pin-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid var(--t3); transition: all .2s;
+    }
+    .pin-dot.filled { background: var(--tint); border-color: var(--tint); transform: scale(1.1); }
+    .pin-hint { font-size: .78rem; color: var(--t3); text-align: center; margin-bottom: 20px; transition: color .2s; }
+    .pin-hint.pin-err { color: var(--err); font-weight: 700; }
+    .pin-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .pin-key {
+      aspect-ratio: 1.6; background: var(--c2); border: none; border-radius: 14px;
+      font-size: 1.3rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; color: var(--t1); transition: background .12s, transform .1s;
+    }
+    .pin-key:active { background: var(--c3); transform: scale(.93); }
+    .pin-key-ghost { background: transparent; cursor: default; }
+    .pin-back { font-size: 1.1rem; }
+
+    /* ── Shake animation ─────────────────────────── */
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)}
+    }
+    .shake { animation: shake .45s ease; }
+
+    /* ── Modal slide-up animation ────────────────── */
+    .ov .modal { transition: transform .32s cubic-bezier(.34,1.1,.64,1); transform: translateY(30px); }
+    .ov.open .modal { transform: translateY(0); }
+
+    /* ── Collapsible smooth ──────────────────────── */
+    .nutr-section { overflow: hidden; max-height: 0; transition: max-height .4s ease; }
+    .nutr-section.is-open { max-height: 6000px; transition: max-height .6s ease; }
 
     /* ── Date / Clock card ───────────────────── */
     .date-card {

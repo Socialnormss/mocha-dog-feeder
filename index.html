@@ -20,12 +20,63 @@
 <body>
 
 <div class="hdr" style="position:relative">
-  <button class="hdr-btn-left" onclick="openSettings()">⚙️</button>
-  <button class="dark-btn" id="darkBtn" onclick="toggleDark()">🌙</button>
+  <button class="hdr-btn-left" onclick="openSettings()" aria-label="การตั้งค่า">⚙️</button>
+  <button class="dark-btn" id="darkBtn" onclick="toggleDark()" aria-label="สลับธีม">🌙</button>
   <div class="hdr-name" id="hdrName">Mocha</div>
 </div>
 
-<div id="updateBanner" onclick="applyUpdate()">✨ มีเวอร์ชันใหม่ — แตะเพื่ออัพเดท</div>
+<div id="updateBanner" onclick="applyUpdate()" role="alert">✨ มีเวอร์ชันใหม่ — แตะเพื่ออัพเดท</div>
+
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- Confirm Sheet -->
+<div class="ov" id="ovConfirm" role="dialog" aria-modal="true">
+  <div class="modal confirm-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-inner">
+      <div class="confirm-icon" id="confirmIcon">⚠️</div>
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-btns">
+        <button class="btn-back" onclick="confirmNo()" id="confirmNoBtn">ยกเลิก</button>
+        <button class="btn-next confirm-yes" onclick="confirmYes()" id="confirmYesBtn">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIN Dialog -->
+<div class="ov" id="ovPin" role="dialog" aria-modal="true" aria-label="ยืนยันตัวตน Admin">
+  <div class="modal pin-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-inner">
+      <div class="modal-head">
+        <span class="modal-title">🔐 รหัส Admin</span>
+        <button class="btn-close" onclick="closePin()" aria-label="ปิด">✕</button>
+      </div>
+      <div class="pin-dots" id="pinDots">
+        <div class="pin-dot"></div><div class="pin-dot"></div>
+        <div class="pin-dot"></div><div class="pin-dot"></div>
+        <div class="pin-dot"></div><div class="pin-dot"></div>
+      </div>
+      <div class="pin-hint" id="pinHint">ใส่รหัส 6 หลัก</div>
+      <div class="pin-grid">
+        <button class="pin-key" onclick="pinInput('1')">1</button>
+        <button class="pin-key" onclick="pinInput('2')">2</button>
+        <button class="pin-key" onclick="pinInput('3')">3</button>
+        <button class="pin-key" onclick="pinInput('4')">4</button>
+        <button class="pin-key" onclick="pinInput('5')">5</button>
+        <button class="pin-key" onclick="pinInput('6')">6</button>
+        <button class="pin-key" onclick="pinInput('7')">7</button>
+        <button class="pin-key" onclick="pinInput('8')">8</button>
+        <button class="pin-key" onclick="pinInput('9')">9</button>
+        <button class="pin-key pin-key-ghost"></button>
+        <button class="pin-key" onclick="pinInput('0')">0</button>
+        <button class="pin-key pin-back" onclick="pinBack()">⌫</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="syncBar"></div>
 
 <!-- Page: Today -->
@@ -106,7 +157,7 @@
     </div>
 
     <button class="sec-toggle" onclick="toggleNutrSection('calcCard',this)">🧮 คำนวณอาหารต่อมื้อ <span class="st-arrow open">›</span></button>
-    <div class="nutr-section" id="calcCard" style="display:block">
+    <div class="nutr-section is-open" id="calcCard">
       <div class="calc-no-weight" id="calcNoWeight">กรุณากรอกน้ำหนักในโปรไฟล์ก่อน</div>
       <div id="calcBody" style="display:none">
         <div class="calc-label">เป้าหมาย</div>
@@ -145,10 +196,10 @@
     </div>
 
     <button class="sec-toggle" onclick="toggleNutrSection('foodProductGrid',this)">🛒 อาหารเม็ดแนะนำสำหรับ Toy Poodle <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="foodProductGrid" style="display:none"></div>
+    <div class="nutr-section" id="foodProductGrid"></div>
 
-    <button class="sec-toggle" onclick="toggleNutrSection('nutrCanEat',this)">✅ อาหารที่กินได้ <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="nutrCanEat" style="display:none">
+    <button class="sec-toggle" onclick="toggleNutrSection('nutrCanEat',this)" aria-expanded="false">✅ อาหารที่กินได้ <span class="st-arrow">›</span></button>
+    <div class="nutr-section" id="nutrCanEat">
     <div class="food-group">
       <div class="group-header"><div>
         <div style="display:flex;align-items:center;gap:8px"><span class="group-badge gb-rec">⭐ แนะนำ</span></div>
@@ -189,8 +240,8 @@
 
     </div><!-- /nutrCanEat -->
 
-    <button class="sec-toggle" onclick="toggleNutrSection('nutrDanger',this)">🚫 อาหารต้องห้าม <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="nutrDanger" style="display:none">
+    <button class="sec-toggle" onclick="toggleNutrSection('nutrDanger',this)" aria-expanded="false">🚫 อาหารต้องห้าม <span class="st-arrow">›</span></button>
+    <div class="nutr-section" id="nutrDanger">
     <div class="danger-group">
       <div style="padding:14px 16px 10px;border-bottom:.5px solid var(--sep)">
         <span style="font-size:.72rem;color:var(--err);font-weight:800;text-transform:uppercase;letter-spacing:.5px">⚠️ อันตรายถึงชีวิต — ห้ามให้เด็ดขาด</span>
@@ -221,8 +272,8 @@
 
     </div><!-- /nutrDanger -->
 
-    <button class="sec-toggle" onclick="toggleNutrSection('nutrTips',this)">💡 คำแนะนำการดูแล <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="nutrTips" style="display:none">
+    <button class="sec-toggle" onclick="toggleNutrSection('nutrTips',this)" aria-expanded="false">💡 คำแนะนำการดูแล <span class="st-arrow">›</span></button>
+    <div class="nutr-section" id="nutrTips">
     <div class="tips-group">
       <div class="tip-item"><span class="tip-ico">🔄</span><div><div class="tip-head">เปลี่ยนจาก Puppy → Adult Formula</div><div class="tip-body">Toy Poodle อายุ 1 ปีถือเป็นผู้ใหญ่แล้ว ควรเปลี่ยนอาหารเป็น Small Breed Adult เพื่อป้องกันน้ำหนักเกิน โดยค่อยๆ ผสม 25% ต่อสัปดาห์ใน 4 สัปดาห์</div></div></div>
       <div class="tip-item"><span class="tip-ico">⚡</span><div><div class="tip-head">ระวัง Hypoglycemia (น้ำตาลต่ำ)</div><div class="tip-body">Toy Poodle ตัวเล็กมาก น้ำตาลในเลือดต่ำได้ง่ายถ้าอดอาหารนาน ควรให้ตรงเวลาสม่ำเสมอ ไม่ควรข้ามมื้อเกิน 12 ชม.</div></div></div>
@@ -242,14 +293,14 @@
 
 <!-- Tab bar -->
 <nav class="tabbar">
-  <button class="tab active" onclick="showPage('today',this)">
-    <span class="ico">🏠</span>วันนี้
+  <button class="tab active" onclick="showPage('today',this)" role="tab" aria-selected="true" aria-label="หน้าวันนี้">
+    <span class="ico" aria-hidden="true">🏠</span>วันนี้
   </button>
-  <button class="tab" onclick="showPage('calendar',this)">
-    <span class="ico">📅</span>ปฏิทิน
+  <button class="tab" onclick="showPage('calendar',this)" role="tab" aria-selected="false" aria-label="ปฏิทิน">
+    <span class="ico" aria-hidden="true">📅</span>ปฏิทิน
   </button>
-  <button class="tab" onclick="showPage('nutrition',this)">
-    <span class="ico">🥗</span>โภชนาการ
+  <button class="tab" onclick="showPage('nutrition',this)" role="tab" aria-selected="false" aria-label="โภชนาการ">
+    <span class="ico" aria-hidden="true">🥗</span>โภชนาการ
   </button>
 </nav>
 
@@ -583,11 +634,11 @@ function saveEditNote(id) {
 }
 
 function deleteNote(id) {
-  if (!confirm('ลบบันทึกนี้?\n(บันทึกจะยังปรากฏในปฏิทิน)')) return;
-  const notes = getNotes();
-  const n = notes.find(x => x.id === id);
-  if (n) n.deleted = true;
-  saveNotes(notes); renderNotes();
+  showConfirm('ลบบันทึกนี้?\nยังปรากฏในปฏิทิน', () => {
+    const notes=getNotes(), n=notes.find(x=>x.id===id);
+    if(n) n.deleted=true;
+    saveNotes(notes); renderNotes(); showToast('ลบบันทึกแล้ว','ok');
+  }, '🗑', 'ลบ', true);
 }
 
 // ── Today ────────────────────────────────────────────────────────────
@@ -793,13 +844,13 @@ function setStep(n) {
 
 function nextStep() {
   if (feedStep===1) {
-    if (!selFeeder) { alert('กรุณาเลือกผู้ให้อาหาร'); return; }
+    if (!selFeeder) { showToast('เลือกผู้ให้อาหารด้วย','warn'); return; }
     if (selFeeder==='other' && !document.getElementById('customFeederTxt').value.trim()) {
-      alert('กรุณาพิมพ์ชื่อ'); return;
+      showToast('พิมพ์ชื่อผู้ให้อาหารด้วย','warn'); return;
     }
     setStep(2);
   } else if (feedStep===2) {
-    if (!selFoodType) { alert('กรุณาเลือกประเภทอาหาร'); return; }
+    if (!selFoodType) { showToast('เลือกประเภทอาหารด้วย','warn'); return; }
     setStep(3);
   } else {
     confirmFeed();
@@ -928,35 +979,33 @@ function openDay(key, d) {
 function closeDay() { document.getElementById('ovDay').classList.remove('open'); }
 
 function adminEditDay(key, d) {
-  const pin = localStorage.getItem('adminPin');
-  const input = prompt(`🔐 ใส่รหัส Admin เพื่อแก้ไขวันที่ ${d} ${MONTHS_S[calM]} ${calY+543}:`);
-  if (input !== pin) { alert('รหัสไม่ถูกต้อง'); return; }
-  const allLog = JSON.parse(localStorage.getItem('log')||'{}');
-  const dl = allLog[key]||{};
-  const checks = MEALS.map(m=>`
-    <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:.5px solid var(--sep);font-size:.9rem">
-      <input type="checkbox" id="ae-${m.id}" ${dl[m.id]?'checked':''} style="width:20px;height:20px">
-      ${m.icon} ${m.label}
-    </label>`).join('');
-  const body=document.getElementById('dayBody');
-  body.innerHTML=`<div style="font-size:.8rem;color:var(--warn);margin-bottom:12px">โหมดแก้ไข Admin — ${d} ${MONTHS_S[calM]} ${calY+543}</div>
-    ${checks}
-    <button class="btn-save" style="margin-top:16px" onclick="saveAdminEdit('${key}')">บันทึกการแก้ไข</button>
-    <button class="btn-undo" style="margin-top:8px" onclick="openDay('${key}',${d})">ยกเลิก</button>`;
+  showPin(() => {
+    const allLog=JSON.parse(localStorage.getItem('log')||'{}'), dl=allLog[key]||{};
+    const checks=MEALS.map(m=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:.5px solid var(--sep);font-size:.9rem;cursor:pointer">
+        <input type="checkbox" id="ae-${m.id}" ${dl[m.id]?'checked':''} style="width:22px;height:22px;accent-color:var(--tint)">
+        ${m.icon} ${m.label}
+      </label>`).join('');
+    const body=document.getElementById('dayBody');
+    body.innerHTML=`<div style="font-size:.78rem;color:var(--warn);margin-bottom:12px;font-weight:700">✏️ โหมดแก้ไข Admin — ${d} ${MONTHS_S[calM]} ${calY+543}</div>
+      ${checks}
+      <button class="btn-save" style="margin-top:16px" onclick="saveAdminEdit('${key}')">บันทึกการแก้ไข</button>
+      <button class="btn-undo" style="margin-top:8px" onclick="openDay('${key}',${d})">ยกเลิก</button>`;
+  });
 }
 
 function saveAdminEdit(key) {
-  const allLog = JSON.parse(localStorage.getItem('log')||'{}');
-  if (!allLog[key]) allLog[key]={};
+  const allLog=JSON.parse(localStorage.getItem('log')||'{}');
+  if(!allLog[key]) allLog[key]={};
   MEALS.forEach(m=>{
-    const checked = document.getElementById(`ae-${m.id}`)?.checked;
-    if (checked && !allLog[key][m.id]) allLog[key][m.id]={time:'(แก้ไขโดย Admin)',by:'Admin',food:''};
-    if (!checked) delete allLog[key][m.id];
+    const checked=document.getElementById(`ae-${m.id}`)?.checked;
+    if(checked && !allLog[key][m.id]) allLog[key][m.id]={time:'(Admin)',by:'Admin',food:''};
+    if(!checked) delete allLog[key][m.id];
   });
   localStorage.setItem('log',JSON.stringify(allLog));
   if(window.db) try{ window.db.collection('logs').doc(key).set(allLog[key]||{}); }catch(e){}
   closeDay(); renderCalendar(); renderDash();
-  alert('บันทึกการแก้ไขเรียบร้อย');
+  showToast('บันทึกการแก้ไขเรียบร้อย','ok');
 }
 
 // ── Settings ──────────────────────────────────────────────────────────
@@ -991,7 +1040,7 @@ function saveSettings() {
 
 // ── Notifications ─────────────────────────────────────────────────────
 async function reqNotif() {
-  if (!('Notification' in window)){alert('เบราว์เซอร์ไม่รองรับ');return;}
+  if (!('Notification' in window)){showToast('เบราว์เซอร์ไม่รองรับการแจ้งเตือน','err');return;}
   await Notification.requestPermission(); updateNotifBtn();
 }
 function updateNotifBtn() {
@@ -1019,15 +1068,15 @@ function checkNotif() {
 // ── Nav ───────────────────────────────────────────────────────────────
 function showPage(name, btn) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>{ t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
   document.getElementById(`page-${name}`).classList.add('active');
-  btn.classList.add('active');
+  btn.classList.add('active'); btn.setAttribute('aria-selected','true');
   if(name==='calendar') { renderCalendar(); renderDash(); }
   if(name==='nutrition') { renderInfo(); renderCalc(); renderFoodProducts(); }
 }
 
 // ── Overlay dismiss ────────────────────────────────────────────────────
-[['ovFeed',closeFeed],['ovNote',closeNoteModal],['ovDay',closeDay],['ovSettings',closeSettings],['ovMealDetail',closeMealDetail]].forEach(([id,fn])=>{
+[['ovFeed',closeFeed],['ovNote',closeNoteModal],['ovDay',closeDay],['ovSettings',closeSettings],['ovMealDetail',closeMealDetail],['ovConfirm',confirmNo],['ovPin',closePin]].forEach(([id,fn])=>{
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) fn();});
 });
 
@@ -1204,23 +1253,18 @@ function saveDogInfo() {
     weight:   document.getElementById('ei-weight').value.trim() || '',
     calories: document.getElementById('ei-cal').value.trim()    || '',
   };
-  localStorage.setItem('dogInfo', JSON.stringify(info));
-  if (window.db) {
-    window.db.collection('config').doc('profile').set(info);
-    if (info.name) window.db.collection('config').doc('dog').set({ name: info.name }, { merge: true });
-  }
-  if (!confirm('บันทึกข้อมูลนี้?')) return;
-  toggleEdit();
-  renderInfo();
-  renderCalc();
+  showConfirm('บันทึกข้อมูลโปรไฟล์?', () => {
+    localStorage.setItem('dogInfo', JSON.stringify(info));
+    if (window.db) {
+      window.db.collection('config').doc('profile').set(info);
+      if (info.name) window.db.collection('config').doc('dog').set({ name: info.name }, { merge: true });
+    }
+    toggleEdit(); renderInfo(); renderCalc();
+    showToast('บันทึกข้อมูลแล้ว','ok');
+  }, '💾', 'บันทึก');
 }
 
-function requestToggleEdit() {
-  if (!isEditing) {
-    if (!confirm('แก้ไขข้อมูลโปรไฟล์มอคค่า?')) return;
-  }
-  toggleEdit();
-}
+function requestToggleEdit() { toggleEdit(); }
 function toggleEdit() {
   isEditing = !isEditing;
   const btn = document.getElementById('editCfgBtn');
@@ -1266,10 +1310,10 @@ function renderFoodProducts() {
 function toggleNutrSection(id, btn) {
   const el = document.getElementById(id);
   if (!el) return;
-  const isOpen = el.style.display !== 'none';
-  el.style.display = isOpen ? 'none' : 'block';
+  const isOpen = el.classList.toggle('is-open');
   const arrow = btn?.querySelector('.st-arrow');
-  if (arrow) { arrow.classList.toggle('open', !isOpen); }
+  if (arrow) arrow.classList.toggle('open', isOpen);
+  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 }
 
 let collapsibleReady = false;
@@ -1298,6 +1342,62 @@ function makeCollapsible() {
     item.querySelector('.tip-ico')?.after(icon);
     item.addEventListener('click', () => item.classList.toggle('open'));
   });
+}
+
+// ── Toast ────────────────────────────────────────────────────────────
+function showToast(msg, type='info', ms=2600) {
+  const el=document.getElementById('toast'); if(!el) return;
+  clearTimeout(el._t);
+  el.textContent=msg;
+  el.className=`toast toast-${type}`;
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.classList.add('show'); }); });
+  el._t=setTimeout(()=>el.classList.remove('show'), ms);
+}
+
+// ── Confirm Sheet ─────────────────────────────────────────────────────
+let _confirmCb=null;
+function showConfirm(msg, onYes, icon='⚠️', yesLabel='ยืนยัน', yesDanger=false) {
+  _confirmCb=onYes;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmIcon').textContent=icon;
+  const yBtn=document.getElementById('confirmYesBtn');
+  yBtn.textContent=yesLabel;
+  yBtn.className=`btn-next confirm-yes${yesDanger?' confirm-danger':''}`;
+  document.getElementById('ovConfirm').classList.add('open');
+}
+function confirmYes() { document.getElementById('ovConfirm').classList.remove('open'); _confirmCb?.(); _confirmCb=null; }
+function confirmNo()  { document.getElementById('ovConfirm').classList.remove('open'); _confirmCb=null; }
+
+// ── PIN Dialog ────────────────────────────────────────────────────────
+let _pinCb=null, _pinVal='';
+function showPin(onSuccess) {
+  _pinCb=onSuccess; _pinVal='';
+  _renderPinDots(); _setPinHint('ใส่รหัส 6 หลัก','');
+  document.getElementById('ovPin').classList.add('open');
+}
+function closePin() { document.getElementById('ovPin').classList.remove('open'); _pinCb=null; }
+function pinInput(n) {
+  if(_pinVal.length>=6) return;
+  _pinVal+=n; _renderPinDots();
+  if(_pinVal.length===6) setTimeout(_checkPin,150);
+}
+function pinBack() { _pinVal=_pinVal.slice(0,-1); _renderPinDots(); _setPinHint('ใส่รหัส 6 หลัก',''); }
+function _renderPinDots() {
+  document.querySelectorAll('#pinDots .pin-dot').forEach((d,i)=>d.classList.toggle('filled',i<_pinVal.length));
+}
+function _setPinHint(msg,cls) {
+  const h=document.getElementById('pinHint'); if(!h) return;
+  h.textContent=msg; h.className=`pin-hint${cls?' '+cls:''}`;
+}
+function _checkPin() {
+  const stored=localStorage.getItem('adminPin')||'000000';
+  if(_pinVal===stored){ closePin(); _pinCb?.(); }
+  else {
+    _pinVal=''; _renderPinDots();
+    _setPinHint('รหัสไม่ถูกต้อง','pin-err');
+    document.getElementById('pinDots').classList.add('shake');
+    setTimeout(()=>{ document.getElementById('pinDots').classList.remove('shake'); _setPinHint('ใส่รหัส 6 หลัก',''); },600);
+  }
 }
 
 // ── Calorie Calculator ────────────────────────────────────────────────
