@@ -11,6 +11,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="มอคค่า">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     /* prevent iOS font-size auto-zoom on input focus */
@@ -594,13 +598,25 @@ function writeLog(id, val) {
   if (val===null) delete all[k][id]; else all[k][id]=val;
   const ks=Object.keys(all).sort(); while(ks.length>60) delete all[ks.shift()];
   localStorage.setItem('log', JSON.stringify(all));
+  // ── Firebase sync ──
+  const ref = db.collection('logs').doc(k);
+  if (val===null) {
+    const u={}; u[id]=firebase.firestore.FieldValue.delete();
+    ref.update(u).catch(()=>ref.set({}));
+  } else {
+    const s={}; s[id]=val;
+    ref.set(s, { merge:true });
+  }
 }
 function getNotes(k) { return (JSON.parse(localStorage.getItem('notes')||'{}')||{})[k||todayKey()]||[]; }
 function saveNotes(arr, k) {
+  const key = k||todayKey();
   const all = JSON.parse(localStorage.getItem('notes')||'{}');
-  all[k||todayKey()] = arr;
+  all[key] = arr;
   const ks=Object.keys(all).sort(); while(ks.length>60) delete all[ks.shift()];
   localStorage.setItem('notes', JSON.stringify(all));
+  // ── Firebase sync ──
+  db.collection('notes').doc(key).set({ items: arr });
 }
 function asFed(v) { if (!v) return null; return typeof v==='string' ? {time:v,by:'',food:''} : v; }
 
@@ -988,10 +1004,13 @@ function openSettings() {
 }
 function closeSettings() { document.getElementById('ovSettings').classList.remove('open'); }
 function saveSettings() {
-  localStorage.setItem('cfg', JSON.stringify({
+  const cfg = {
     name: document.getElementById('cfgName').value.trim()||'มอคค่า',
     times:[document.getElementById('cfg0').value,document.getElementById('cfg1').value,document.getElementById('cfg2').value],
-  }));
+  };
+  localStorage.setItem('cfg', JSON.stringify(cfg));
+  // ── Firebase sync ──
+  db.collection('config').doc('dog').set(cfg);
   closeSettings(); renderHeader(); renderToday();
 }
 
@@ -1036,9 +1055,56 @@ function showPage(name, btn) {
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) fn();});
 });
 
+// ── Firebase real-time sync ────────────────────────────────────────────
+function startSync() {
+  const k = todayKey();
+
+  // Listen: feeding log (วันนี้) — อัปเดตทุกเครื่องทันที
+  db.collection('logs').doc(k).onSnapshot(snap => {
+    const data = snap.data() || {};
+    const all = JSON.parse(localStorage.getItem('log')||'{}');
+    if (JSON.stringify(all[k]) === JSON.stringify(data)) return; // no change
+    all[k] = data;
+    localStorage.setItem('log', JSON.stringify(all));
+    renderToday(); renderHeader();
+  });
+
+  // Listen: notes (วันนี้)
+  db.collection('notes').doc(k).onSnapshot(snap => {
+    const items = (snap.data()||{}).items || [];
+    const all = JSON.parse(localStorage.getItem('notes')||'{}');
+    if (JSON.stringify(all[k]) === JSON.stringify(items)) return;
+    all[k] = items;
+    localStorage.setItem('notes', JSON.stringify(all));
+    renderNotes();
+  });
+
+  // Listen: dog config (ตั้งค่า + ชื่อ)
+  db.collection('config').doc('dog').onSnapshot(snap => {
+    const data = snap.data();
+    if (!data) return;
+    if (localStorage.getItem('cfg') === JSON.stringify(data)) return;
+    localStorage.setItem('cfg', JSON.stringify(data));
+    renderHeader(); renderToday();
+  });
+
+  // Load: ประวัติ 60 วัน (สำหรับ calendar)
+  db.collection('logs').get().then(snap => {
+    const all = JSON.parse(localStorage.getItem('log')||'{}');
+    snap.forEach(d => { all[d.id] = d.data(); });
+    localStorage.setItem('log', JSON.stringify(all));
+  });
+  db.collection('notes').get().then(snap => {
+    const all = JSON.parse(localStorage.getItem('notes')||'{}');
+    snap.forEach(d => { all[d.id] = (d.data().items||[]); });
+    localStorage.setItem('notes', JSON.stringify(all));
+  });
+}
+
 // ── SW + Boot ──────────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 renderHeader(); renderToday(); renderNotes();
+startSync();
 setInterval(()=>{renderHeader();renderToday();checkNotif();},30000);
 </script>
 </body>

@@ -9,6 +9,10 @@
   <link rel="apple-touch-icon" href="icon.png">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     input, textarea, select { font-size: 16px !important; }
@@ -323,9 +327,22 @@ function saveDogInfo() {
     calories: document.getElementById('ei-cal').value.trim()     || '',
   };
   localStorage.setItem('dogInfo', JSON.stringify(info));
+  // ── Firebase sync ──
+  db.collection('config').doc('profile').set(info);
+  // sync ชื่อไปที่ config/dog ด้วย (ใช้ใน index.html)
+  if (info.name) db.collection('config').doc('dog').set({ name: info.name }, { merge: true });
   toggleEdit();
   renderInfo();
 }
+
+// Listen: sync profile จาก device อื่น
+db.collection('config').doc('profile').onSnapshot(snap => {
+  const data = snap.data();
+  if (!data) return;
+  if (localStorage.getItem('dogInfo') === JSON.stringify(data)) return;
+  localStorage.setItem('dogInfo', JSON.stringify(data));
+  renderInfo();
+});
 
 // RER × 1.6 (adult, moderate activity) — standard vet formula
 function calcKcal(w) {
