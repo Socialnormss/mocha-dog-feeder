@@ -28,8 +28,8 @@
     .hdr {
       background: rgba(0,0,0,.85); backdrop-filter: blur(20px) saturate(180%);
       border-bottom: .5px solid var(--sep);
-      padding: 16px 20px 12px; text-align: center;
-      position: sticky; top: 0; z-index: 30;
+      padding: calc(env(safe-area-inset-top, 0px) + 14px) 20px 12px;
+      text-align: center; position: sticky; top: 0; z-index: 30;
     }
     .hdr-name { font-size: 1.35rem; font-weight: 800; color: var(--tint); letter-spacing: -.5px; }
     .hdr-date { font-size: .75rem; color: var(--t2); margin-top: 2px; }
@@ -124,7 +124,61 @@
     }
     .notes-empty { font-size: .82rem; color: var(--t3); text-align: center; padding: 8px 0; }
 
-    /* ── Meal cards ──────────────────────────── */
+    /* ── Note tap-to-edit + × delete ────────── */
+    .note-text-row { display: flex; align-items: flex-start; gap: 8px; }
+    .note-text { flex: 1; cursor: pointer; }
+    .note-text:active { opacity: .7; }
+    .note-del-x {
+      background: rgba(217,100,100,.14); border: none;
+      color: var(--err); font-size: 1rem; font-weight: 700;
+      cursor: pointer; flex-shrink: 0;
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: -2px;
+    }
+    .note-del-x:active { background: rgba(217,100,100,.3); }
+    /* deleted note in calendar */
+    .dd-deleted .dd-note-text { text-decoration: line-through; color: var(--t3); }
+    .dd-deleted .dd-note-time { color: var(--t3); }
+
+    /* ── Meal 2×2 grid ───────────────────────── */
+    #cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .meal-sq {
+      background: var(--c1); border-radius: 18px;
+      padding: 13px 11px 11px;
+      border: 1.5px solid transparent;
+      display: flex; flex-direction: column; gap: 3px;
+      box-shadow: 0 1px 10px rgba(44,24,16,.07);
+      min-height: 155px; overflow: hidden; min-width: 0;
+    }
+    .meal-sq.fed     { border-color: rgba(93,168,122,.4);  background: rgba(93,168,122,.07); }
+    .meal-sq.overdue { border-color: rgba(217,100,100,.4); }
+    .sq-top  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; flex-shrink: 0; }
+    .sq-ico  { font-size: 1.7rem; line-height: 1; flex-shrink: 0; }
+    .sq-name { font-size: .85rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sq-time { font-size: .7rem; color: var(--t2); }
+    .sq-fed-time { font-size: .72rem; color: var(--ok); font-weight: 700; margin-top: 1px; }
+    .sq-info { font-size: .65rem; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sq-feed {
+      margin-top: auto; display: block; width: 100%; padding: 10px 4px;
+      background: var(--tint); color: #fff;
+      border: none; border-radius: 10px;
+      font-size: .82rem; font-weight: 800; font-family: inherit; cursor: pointer;
+      transition: background .1s;
+    }
+    .sq-feed:active { background: var(--tintd); }
+    .sq-undo {
+      margin-top: auto; display: block; width: 100%; padding: 8px 4px;
+      background: transparent; border: 1px solid var(--sep);
+      border-radius: 8px; color: var(--t2);
+      font-size: .75rem; font-family: inherit; cursor: pointer;
+    }
+    html.dark .meal-sq { box-shadow: none; }
+    html.dark .meal-sq.fed     { background: rgba(48,209,88,.07); border-color: rgba(48,209,88,.35); }
+    html.dark .meal-sq.overdue { border-color: rgba(255,69,58,.35); }
+    html.dark .sq-fed-time { color: #6ee7b7; }
+
+    /* ── Meal cards (legacy, kept for reference) ── */
     .meal-card {
       background: var(--c1); border-radius: var(--r);
       padding: 16px; margin-bottom: 10px;
@@ -458,10 +512,14 @@
 
     /* ── Dark mode toggle button ────────────────────────────── */
     .dark-btn {
-      position: absolute; top: 14px; right: 16px;
+      position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 16px;
       background: none; border: none; font-size: 1.1rem;
-      cursor: pointer; line-height: 1; padding: 4px;
-      color: var(--t2);
+      cursor: pointer; line-height: 1; padding: 4px; color: var(--t2);
+    }
+    .hdr-btn-left {
+      position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 16px;
+      background: none; border: none; font-size: 1.1rem;
+      cursor: pointer; line-height: 1; padding: 4px; color: var(--t2);
     }
 
     /* ── Nutrition page ──────────────────────────────────────── */
@@ -651,6 +709,54 @@
     .cr-note { font-size: .68rem; color: var(--t3); margin-top: 10px; line-height: 1.5; }
     html.dark .calc-card { box-shadow: none; }
     html.dark .combo-btn.active { background: rgba(212,165,116,.12); }
+
+    /* ── Meal detail popup ───────────────────── */
+    .md-meta { display: flex; gap: 12px; font-size: .8rem; color: var(--t2); margin-bottom: 14px; }
+    .md-row { margin-bottom: 10px; }
+    .md-label { font-size: .85rem; font-weight: 600; margin-bottom: 4px; }
+    .md-bar-wrap { background: var(--c2); border-radius: 4px; height: 7px; overflow: hidden; margin-bottom: 4px; }
+    .md-bar { height: 100%; border-radius: 4px; background: var(--tint); min-width: 4px; }
+    .md-nums { font-size: .8rem; color: var(--t2); display: flex; gap: 8px; }
+    .md-nums strong { color: var(--t1); }
+    .md-total { margin-top: 12px; padding-top: 10px; border-top: .5px solid var(--sep); font-size: .88rem; color: var(--t2); text-align: right; }
+    .md-total strong { color: var(--tint); font-size: 1rem; }
+
+    /* ── Calendar Dashboard ──────────────────── */
+    .dash-tabs { display: flex; gap: 6px; margin: 18px 0 10px; }
+    .dash-tab {
+      flex: 1; padding: 9px 4px; background: var(--c2); border: 1.5px solid transparent;
+      border-radius: 10px; font-size: .8rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; color: var(--t2); transition: all .15s;
+    }
+    .dash-tab.active { border-color: var(--tint); color: var(--tint); background: rgba(155,107,69,.1); }
+    .dash-card {
+      background: var(--c1); border-radius: var(--r); padding: 16px;
+      box-shadow: 0 1px 8px rgba(44,24,16,.06); margin-bottom: 16px;
+    }
+    .db-dots { display: flex; justify-content: space-around; margin-bottom: 12px; }
+    .db-dot-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .db-dot { width: 44px; height: 44px; border-radius: 50%; background: var(--c2); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+    .db-dot.fed { background: rgba(93,168,122,.2); box-shadow: 0 0 0 2px var(--ok); }
+    .db-dot-lbl { font-size: .65rem; color: var(--t2); font-weight: 600; }
+    .db-summary { font-size: .82rem; color: var(--t2); text-align: center; margin-top: 8px; }
+    .db-summary strong { color: var(--t1); }
+    .db-kcal-row { display: flex; justify-content: space-between; font-size: .75rem; color: var(--t2); margin: 10px 0 5px; }
+    .db-kcal-row strong { color: var(--t1); }
+    .db-bar-wrap { background: var(--c2); border-radius: 6px; height: 8px; overflow: hidden; }
+    .db-bar { height: 100%; border-radius: 6px; background: var(--ok); transition: width .5s; }
+    .db-week { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .db-wday { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
+    .db-wcol { width: 32px; height: 32px; border-radius: 8px; background: var(--c2); display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; color: var(--t3); }
+    .db-wcol.full { background: rgba(93,168,122,.25); color: #2E7A52; }
+    .db-wcol.part { background: rgba(155,107,69,.2); color: var(--tint); }
+    .db-wlbl { font-size: .65rem; color: var(--t3); }
+    .db-month-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .db-mstat { background: var(--c2); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .db-mico { font-size: 1.3rem; }
+    .db-mstat strong { font-size: 1.4rem; font-weight: 900; color: var(--t1); }
+    .db-mstat span { font-size: .7rem; color: var(--t2); }
+    html.dark .dash-card { box-shadow: none; }
+    html.dark .dash-tab.active { background: rgba(212,165,116,.12); }
 
     /* ── Date / Clock card ───────────────────── */
     .date-card {

@@ -20,6 +20,7 @@
 <body>
 
 <div class="hdr" style="position:relative">
+  <button class="hdr-btn-left" onclick="openSettings()">⚙️</button>
   <button class="dark-btn" id="darkBtn" onclick="toggleDark()">🌙</button>
   <div class="hdr-name" id="hdrName">Mocha</div>
 </div>
@@ -75,6 +76,14 @@
       <span><i class="dot d-note"></i>มีบันทึก</span>
     </div>
     <div class="cal-grid" id="calGrid"></div>
+
+    <!-- Dashboard -->
+    <div class="dash-tabs">
+      <button class="dash-tab active" id="dt-day"   onclick="setDash('day')">วันนี้</button>
+      <button class="dash-tab"        id="dt-week"  onclick="setDash('week')">สัปดาห์</button>
+      <button class="dash-tab"        id="dt-month" onclick="setDash('month')">เดือน</button>
+    </div>
+    <div class="dash-card" id="dashCard"></div>
   </div>
 </div>
 
@@ -82,7 +91,7 @@
 <div class="page" id="page-nutrition">
   <div class="nutr-wrap">
     <div class="nutr-edit-bar">
-      <button class="btn-edit-cfg" id="editCfgBtn" onclick="toggleEdit()">✏️ แก้ไข</button>
+      <button class="btn-edit-cfg" id="editCfgBtn" onclick="requestToggleEdit()">✏️ แก้ไข</button>
     </div>
     <div class="hero">
       <div class="hero-avatar">🐩</div>
@@ -233,7 +242,6 @@
   </button>
 </nav>
 
-<button class="fab" onclick="openSettings()">⚙️</button>
 
 <!-- ═══ Feed Modal (3 steps) ═══ -->
 <div class="ov" id="ovFeed">
@@ -319,6 +327,20 @@
   </div>
 </div>
 
+<!-- ═══ Meal Detail Modal ═══ -->
+<div class="ov" id="ovMealDetail">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-inner">
+      <div class="modal-head">
+        <span class="modal-title" id="mdTitle"></span>
+        <button class="btn-close" onclick="closeMealDetail()">✕</button>
+      </div>
+      <div id="mdBody"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Day Detail Modal ═══ -->
 <div class="ov" id="ovDay">
   <div class="modal">
@@ -343,7 +365,6 @@
         <button class="btn-close" onclick="closeSettings()">✕</button>
       </div>
       <button class="btn-notif" id="notifBtn" onclick="reqNotif()">🔔 เปิดการแจ้งเตือน</button>
-      <div class="fld"><label>ชื่อน้องหมา</label><input id="cfgName" type="text"></div>
       <div class="fld"><label>มื้อเช้า</label><input id="cfg0" type="time"></div>
       <div class="fld"><label>มื้อกลางวัน</label><input id="cfg1" type="time"></div>
       <div class="fld"><label>มื้อเย็น</label><input id="cfg2" type="time"></div>
@@ -471,9 +492,10 @@ function tickClock() {
 function renderNotes() {
   const list = document.getElementById('notesList');
   const notes = getNotes();
-  if (!notes.length) { list.innerHTML='<div class="notes-empty">ยังไม่มีบันทึกวันนี้</div>'; return; }
+  const active = notes.filter(n => !n.deleted);
+  if (!active.length) { list.innerHTML='<div class="notes-empty">ยังไม่มีบันทึกวันนี้</div>'; return; }
   const PRI = { high:0, mid:1, low:2 };
-  const sorted = [...notes].sort((a,b) => (PRI[a.priority||'mid']||1) - (PRI[b.priority||'mid']||1));
+  const sorted = [...active].sort((a,b) => (PRI[a.priority||'mid']||1) - (PRI[b.priority||'mid']||1));
   list.innerHTML = sorted.map(n => {
     const dotClass = `pri-dot pri-dot-${n.priority||'mid'}`;
     return `
@@ -481,12 +503,11 @@ function renderNotes() {
       <div class="${dotClass}"></div>
       <div class="note-check${n.done?' done':''}" onclick="toggleNoteDone(${n.id})">${n.done?'✓':''}</div>
       <div class="note-body">
-        <div class="note-text${n.done?' done':''}">${escHtml(n.text)}</div>
+        <div class="note-text-row">
+          <span class="note-text${n.done?' done':''}" onclick="startEditNote(${n.id})">${escHtml(n.text)}</span>
+          <button class="note-del-x" onclick="deleteNote(${n.id})">×</button>
+        </div>
         <div class="note-meta">${n.time}${n.by?' • '+n.by:''}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-        <button class="note-edit-btn" onclick="startEditNote(${n.id})">✏️</button>
-        <button class="note-edit-btn note-del-btn" onclick="deleteNote(${n.id})">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -548,7 +569,10 @@ function saveEditNote(id) {
 }
 
 function deleteNote(id) {
-  const notes = getNotes().filter(n => n.id !== id);
+  if (!confirm('ลบบันทึกนี้?\n(บันทึกจะยังปรากฏในปฏิทิน)')) return;
+  const notes = getNotes();
+  const n = notes.find(x => x.id === id);
+  if (n) n.deleted = true;
   saveNotes(notes); renderNotes();
 }
 
@@ -563,33 +587,33 @@ function renderToday() {
     const mt=new Date(now); mt.setHours(h,mn,0,0);
     const overdue=!fed && now>mt;
     const card=document.createElement('div');
-    card.className=`meal-card${fed?' fed':overdue?' overdue':''}`;
+    card.className=`meal-sq${fed?' fed':overdue?' overdue':''}`;
 
-    let status;
     if (fed) {
-      let desc = `<span class="hi">${fed.time||''}</span>`;
-      if (fed.by)   desc += ` • ${fed.by}`;
-      if (fed.food) desc += `<br>${fed.food}`;
-      status = `<div style="text-align:right"><span class="badge done">✓ ให้แล้ว</span><div class="fed-detail">${desc}</div></div>`;
-    } else if (overdue) {
-      status = `<span class="badge overdue">⚠ เลยเวลา</span>`;
-    } else {
-      status = `<span class="badge pending">รอ</span>`;
-    }
-
-    card.innerHTML=`
-      <div class="meal-top">
-        <div class="meal-left">
-          <span class="meal-ico">${meal.icon}</span>
-          <div><div class="meal-name">${meal.label}</div><div class="meal-time">${t} น.</div></div>
+      const info = [fed.by, fed.food].filter(Boolean).join(' · ');
+      card.innerHTML=`
+        <div class="sq-top" onclick="openMealDetail('${meal.id}','${meal.label}',${i})">
+          <span class="sq-ico">${meal.icon}</span>
+          <span class="badge done">✓</span>
         </div>
-        ${status}
-      </div>
-      ${fed
-        ?`<button class="btn-feed done">🐾 ให้อาหารแล้ว</button>
-          <button class="btn-undo" onclick="undoFeed('${meal.id}')">↩ ยกเลิก</button>`
-        :`<button class="btn-feed" onclick="openFeed('${meal.id}')">🍖 ให้อาหารแล้ว</button>`
-      }`;
+        <div class="sq-name" onclick="openMealDetail('${meal.id}','${meal.label}',${i})">${meal.label}</div>
+        <div class="sq-time" onclick="openMealDetail('${meal.id}','${meal.label}',${i})">${t} น.</div>
+        ${fed.time ? `<div class="sq-fed-time" onclick="openMealDetail('${meal.id}','${meal.label}',${i})">${fed.time}</div>` : ''}
+        ${info ? `<div class="sq-info" onclick="openMealDetail('${meal.id}','${meal.label}',${i})">${info}</div>` : ''}
+        <button class="sq-undo" onclick="event.stopPropagation();undoFeed('${meal.id}')">↩ ยกเลิก</button>`;
+    } else {
+      const badge = overdue
+        ? `<span class="badge overdue">⚠</span>`
+        : `<span class="badge pending">รอ</span>`;
+      card.innerHTML=`
+        <div class="sq-top">
+          <span class="sq-ico">${meal.icon}</span>
+          ${badge}
+        </div>
+        <div class="sq-name">${meal.label}</div>
+        <div class="sq-time">${t} น.</div>
+        <button class="sq-feed" onclick="openFeed('${meal.id}')">ให้อาหาร</button>`;
+    }
     frag.appendChild(card);
   });
   c.innerHTML='';
@@ -597,6 +621,27 @@ function renderToday() {
 }
 
 function undoFeed(id) { writeLog(id,null); renderToday(); renderHeader(); }
+
+function openMealDetail(id, label, idx) {
+  const fed = asFed(getLog()[id]); if (!fed) return;
+  document.getElementById('mdTitle').textContent = label;
+  const total = fed.portions?.reduce((s,p)=>s+p.kcal,0) || 0;
+  const rows = fed.portions?.length
+    ? fed.portions.map(p=>`
+        <div class="md-row">
+          <div class="md-label">${p.label}</div>
+          <div class="md-bar-wrap"><div class="md-bar" style="width:${Math.min(100,Math.round(p.g*1.5))}%"></div></div>
+          <div class="md-nums"><strong>${p.g}g</strong><span>${p.kcal} kcal</span></div>
+        </div>`).join('')
+    : `<div style="font-size:.85rem;color:var(--t2);padding:8px 0">${fed.food||'ไม่มีข้อมูลสัดส่วน'}</div>`;
+  document.getElementById('mdBody').innerHTML=`
+    <div class="md-meta">${fed.by?'<span>👤 '+fed.by+'</span>':''}<span>🕐 ${fed.time||''}</span></div>
+    ${rows}
+    ${total?`<div class="md-total">รวม <strong>${total} kcal</strong></div>`:''}
+    <button class="btn-undo" style="margin-top:14px" onclick="closeMealDetail();undoFeed('${id}')">↩ ยกเลิกการบันทึก</button>`;
+  document.getElementById('ovMealDetail').classList.add('open');
+}
+function closeMealDetail() { document.getElementById('ovMealDetail').classList.remove('open'); }
 
 // ── Feed Modal ───────────────────────────────────────────────────────
 let pendingId=null, feedStep=1;
@@ -761,7 +806,22 @@ function confirmFeed() {
     ? `${selCustomTime} น.`
     : (PERIODS.find(p=>p.id===selPeriod)?.name || '');
 
-  writeLog(pendingId, { time:timeLabel, by:feederName, food:foodLabel });
+  // compute portions for detail popup
+  const _info=getDogInfo(), _w=parseFloat(_info.weight);
+  let portions=[];
+  if (_w && ft) {
+    const _per=Math.round(Math.round(70*Math.pow(_w,.75))*1.6/getCfg().times.length);
+    if (ft.id==='dry') {
+      portions=[{label:'อาหารเม็ด',g:Math.round(_per/370*100),kcal:_per}];
+    } else {
+      const mr=ft.id==='dry+meat'?.25:.20;
+      const mk=Math.round(_per*mr), dk=ft.id==='dry+meat'?_per-mk:Math.round(_per*.75);
+      const mkey=[...selMeats][0]||'🐔 ไก่', mkc=MEAT_DATA[mkey]?.kcal||165;
+      portions=[{label:'อาหารเม็ด',g:Math.round(dk/370*100),kcal:dk},{label:mkey+' (ต้ม/อบ)',g:Math.round(mk/mkc*100),kcal:mk}];
+      if (ft.id==='dry+meat+veg'&&selVegs.size) portions.push({label:[...selVegs][0]||'ผัก',g:15,kcal:_per-dk-mk});
+    }
+  }
+  writeLog(pendingId, { time:timeLabel, by:feederName, food:foodLabel, portions });
 
   localStorage.setItem('lastFeeder', selFeeder);
   localStorage.setItem('lastFoodType', selFoodType);
@@ -837,8 +897,8 @@ function openDay(key, d) {
     body.appendChild(h);
     dayNotes.forEach(n=>{
       const el=document.createElement('div');
-      el.className=`dd-note-item${n.done?' done':''}`;
-      el.innerHTML=`<div class="dd-note-text">${escHtml(n.text)}</div><div class="dd-note-time">${n.time}${n.by?' • '+n.by:''}</div>`;
+      el.className=`dd-note-item${n.done?' done':''}${n.deleted?' dd-deleted':''}`;
+      el.innerHTML=`<div class="dd-note-text">${escHtml(n.text)}</div><div class="dd-note-time">${n.time}${n.by?' • '+n.by:''}${n.deleted?' · ลบแล้ว':''}</div>`;
       body.appendChild(el);
     });
   }
@@ -849,7 +909,6 @@ function closeDay() { document.getElementById('ovDay').classList.remove('open');
 // ── Settings ──────────────────────────────────────────────────────────
 function openSettings() {
   const cfg=getCfg();
-  document.getElementById('cfgName').value=cfg.name;
   document.getElementById('cfg0').value=cfg.times[0];
   document.getElementById('cfg1').value=cfg.times[1];
   document.getElementById('cfg2').value=cfg.times[2];
@@ -859,8 +918,9 @@ function openSettings() {
 }
 function closeSettings() { document.getElementById('ovSettings').classList.remove('open'); }
 function saveSettings() {
+  const prev = getCfg();
   const cfg = {
-    name: document.getElementById('cfgName').value.trim()||'มอคค่า',
+    name: prev.name,
     times:[document.getElementById('cfg0').value,document.getElementById('cfg1').value,document.getElementById('cfg2').value,document.getElementById('cfg3').value],
   };
   localStorage.setItem('cfg', JSON.stringify(cfg));
@@ -902,12 +962,12 @@ function showPage(name, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
   btn.classList.add('active');
-  if(name==='calendar') renderCalendar();
+  if(name==='calendar') { renderCalendar(); renderDash(); }
   if(name==='nutrition') { renderInfo(); renderCalc(); }
 }
 
 // ── Overlay dismiss ────────────────────────────────────────────────────
-[['ovFeed',closeFeed],['ovNote',closeNoteModal],['ovDay',closeDay],['ovSettings',closeSettings]].forEach(([id,fn])=>{
+[['ovFeed',closeFeed],['ovNote',closeNoteModal],['ovDay',closeDay],['ovSettings',closeSettings],['ovMealDetail',closeMealDetail]].forEach(([id,fn])=>{
   document.getElementById(id).addEventListener('click',e=>{if(e.target===e.currentTarget) fn();});
 });
 
@@ -1089,11 +1149,18 @@ function saveDogInfo() {
     window.db.collection('config').doc('profile').set(info);
     if (info.name) window.db.collection('config').doc('dog').set({ name: info.name }, { merge: true });
   }
+  if (!confirm('บันทึกข้อมูลนี้?')) return;
   toggleEdit();
   renderInfo();
   renderCalc();
 }
 
+function requestToggleEdit() {
+  if (!isEditing) {
+    if (!confirm('แก้ไขข้อมูลโปรไฟล์มอคค่า?')) return;
+  }
+  toggleEdit();
+}
 function toggleEdit() {
   isEditing = !isEditing;
   const btn = document.getElementById('editCfgBtn');
@@ -1236,6 +1303,81 @@ function mealRow(label, grams, kcal, color) {
     <div class="cr-bar-wrap"><div class="cr-bar" style="width:${Math.min(100,grams*2)}%;background:${color}"></div></div>
     <div class="cr-nums"><strong>${grams}g</strong> <span>${kcal} kcal</span></div>
   </div>`;
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+let dashMode = 'day';
+function setDash(m) {
+  dashMode = m;
+  ['day','week','month'].forEach(k => document.getElementById(`dt-${k}`)?.classList.toggle('active', k===m));
+  renderDash();
+}
+
+function renderDash() {
+  const el = document.getElementById('dashCard'); if (!el) return;
+  const allLog = JSON.parse(localStorage.getItem('log')||'{}');
+  const today = new Date();
+  const mk = d => `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  const cnt = log => MEALS.filter(m => log[m.id]).length;
+
+  if (dashMode === 'day') {
+    const log = allLog[mk(today)] || {};
+    const fed = cnt(log), total = MEALS.length;
+    const pct = Math.round(fed/total*100);
+    const dots = MEALS.map(m => {
+      const f = asFed(log[m.id]);
+      return `<div class="db-dot-wrap"><div class="db-dot${f?' fed':''}">${m.icon}</div><div class="db-dot-lbl">${m.label.replace('มื้อ','')}</div></div>`;
+    }).join('');
+    const info = getDogInfo(); const w = parseFloat(info.weight);
+    const kcalTarget = w ? Math.round(70*Math.pow(w,.75)*1.6) : 0;
+    const kcalDone = fed * (kcalTarget ? Math.round(kcalTarget/total) : 0);
+    const kcalBar = kcalTarget ? `
+      <div class="db-kcal-row">
+        <span>แคลอรี่วันนี้</span>
+        <span><strong>${kcalDone}</strong> / ${kcalTarget} kcal</span>
+      </div>
+      <div class="db-bar-wrap"><div class="db-bar" style="width:${Math.min(100,Math.round(kcalDone/kcalTarget*100))}%"></div></div>` : '';
+    el.innerHTML = `<div class="db-dots">${dots}</div>
+      <div class="db-summary">${fed === total ? '🎉 ครบทุกมื้อแล้ววันนี้!' : `ให้แล้ว <strong>${fed}/${total}</strong> มื้อ`}</div>
+      ${kcalBar}`;
+
+  } else if (dashMode === 'week') {
+    let html = '<div class="db-week">';
+    for (let i=6; i>=0; i--) {
+      const d = new Date(today); d.setDate(d.getDate()-i);
+      const log = allLog[mk(d)] || {}, c = cnt(log);
+      const isPast = d <= today;
+      const fill = c===MEALS.length?'full':c>0?'part':'';
+      html += `<div class="db-wday">
+        <div class="db-wcol${fill?' '+fill:''}">${c>0?c:''}</div>
+        <div class="db-wlbl">${DAYS_S[d.getDay()]}</div>
+      </div>`;
+    }
+    html += '</div>';
+    const weekFed = Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()-(6-i));return cnt(allLog[mk(d)]||{});});
+    const avg = (weekFed.reduce((a,b)=>a+b,0)/7).toFixed(1);
+    html += `<div class="db-summary">เฉลี่ย <strong>${avg}</strong> มื้อ/วัน · 7 วันที่ผ่านมา</div>`;
+    el.innerHTML = html;
+
+  } else {
+    const y = today.getFullYear(), mo = today.getMonth();
+    let full=0, part=0, miss=0, streak=0, cur=0;
+    for (let d=1; d<=today.getDate(); d++) {
+      const log = allLog[`${y}-${mo+1}-${d}`]||{}, c=cnt(log);
+      if (c===MEALS.length){full++;cur++;}
+      else if(c>0){part++;cur=0;}
+      else{miss++;cur=0;}
+      streak=Math.max(streak,cur);
+    }
+    el.innerHTML = `
+      <div class="db-month-grid">
+        <div class="db-mstat"><span class="db-mico">✅</span><strong>${full}</strong><span>วันครบมื้อ</span></div>
+        <div class="db-mstat"><span class="db-mico">🟡</span><strong>${part}</strong><span>วันบางมื้อ</span></div>
+        <div class="db-mstat"><span class="db-mico">❌</span><strong>${miss}</strong><span>วันขาด</span></div>
+        <div class="db-mstat"><span class="db-mico">🔥</span><strong>${streak}</strong><span>วันติดต่อกัน</span></div>
+      </div>
+      <div class="db-summary">เดือน${MONTHS_S[mo]} ${y+543}</div>`;
+  }
 }
 
 // ── SW update ─────────────────────────────────────────────────────────
