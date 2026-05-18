@@ -5,12 +5,12 @@
 //  3. Copy config แล้ว paste แทน PASTE_HERE ด้านล่าง
 // ════════════════════════════════════════════════════════════
 const FIREBASE_CONFIG = {
-  apiKey:            "PASTE_HERE",
-  authDomain:        "PASTE_HERE",
-  projectId:         "PASTE_HERE",
-  storageBucket:     "PASTE_HERE",
-  messagingSenderId: "PASTE_HERE",
-  appId:             "PASTE_HERE",
+  apiKey:            "AIzaSyBLTB9rvtPOzWtBaB9BfpNmntC6TCDnFE4",
+  authDomain:        "mocha-feeder.firebaseapp.com",
+  projectId:         "mocha-feeder",
+  storageBucket:     "mocha-feeder.firebasestorage.app",
+  messagingSenderId: "587144144533",
+  appId:             "1:587144144533:web:ac757a2ce148b048581d9c",
 };
 
 // ── Init ─────────────────────────────────────────────────────
