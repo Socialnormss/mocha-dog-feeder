@@ -9,9 +9,8 @@
   <link rel="apple-touch-icon" href="icon.png">
   <meta name="theme-color" content="#9B6B45">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Mocha">
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
@@ -22,523 +21,501 @@
 
 <div class="app">
 
-<!-- ════ Topbar (Cozy v3) ════ -->
-<header class="topbar">
-  <div class="topbar__id">
-    <div class="avatar"><img src="img/mocha-avatar.png" alt="" width="38" height="38"></div>
-    <div class="topbar__title">
-      <span class="name" id="hdrName">มอคค่า</span>
-      <span class="breed" id="syncRow" hidden>
-        <span class="dc-dot" id="dcDot" aria-hidden="true"></span>
-        <span id="dcSyncTxt"></span>
-      </span>
-    </div>
-  </div>
-  <div class="flex gap-2">
-    <button class="icon-btn" id="darkBtn" onclick="toggleDark()" aria-label="สลับธีม">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-      </svg>
-    </button>
-    <button class="icon-btn" onclick="openSettings()" aria-label="ตั้งค่า">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-      </svg>
-    </button>
-  </div>
-</header>
+  <!-- Sync row pill (hidden by default) -->
+  <div id="syncBar"></div>
+  <div id="updateBanner" onclick="applyUpdate()" role="alert">✨ มีเวอร์ชันใหม่ — แตะเพื่ออัพเดท</div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<div id="updateBanner" onclick="applyUpdate()" role="alert">✨ มีเวอร์ชันใหม่ — แตะเพื่ออัพเดท</div>
+  <!-- ════════════════════════════════════════════════════════════════
+       PAGE · TODAY
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="page active" id="page-today" aria-label="วันนี้">
 
-<!-- Toast -->
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<!-- ════ Confirm Sheet ════ -->
-<div class="ov" id="ovConfirm" role="dialog" aria-modal="true">
-  <div class="modal confirm-sheet">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="confirm-icon" id="confirmIcon">⚠️</div>
-      <div class="confirm-msg" id="confirmMsg"></div>
-      <div class="confirm-btns">
-        <button class="btn-back" onclick="confirmNo()" id="confirmNoBtn">ยกเลิก</button>
-        <button class="btn-next confirm-yes" onclick="confirmYes()" id="confirmYesBtn">ยืนยัน</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════ PIN Dialog ════ -->
-<div class="ov" id="ovPin" role="dialog" aria-modal="true" aria-label="ยืนยันตัวตน Admin">
-  <div class="modal pin-sheet">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="modal-head">
-        <span class="modal-title">🔐 รหัส Admin</span>
-        <button class="btn-close" onclick="closePin()" aria-label="ปิด">✕</button>
-      </div>
-      <div class="pin-dots" id="pinDots">
-        <div class="pin-dot"></div><div class="pin-dot"></div>
-        <div class="pin-dot"></div><div class="pin-dot"></div>
-        <div class="pin-dot"></div><div class="pin-dot"></div>
-      </div>
-      <div class="pin-hint" id="pinHint">ใส่รหัส 6 หลัก</div>
-      <div class="pin-grid">
-        <button class="pin-key" onclick="pinInput('1')">1</button>
-        <button class="pin-key" onclick="pinInput('2')">2</button>
-        <button class="pin-key" onclick="pinInput('3')">3</button>
-        <button class="pin-key" onclick="pinInput('4')">4</button>
-        <button class="pin-key" onclick="pinInput('5')">5</button>
-        <button class="pin-key" onclick="pinInput('6')">6</button>
-        <button class="pin-key" onclick="pinInput('7')">7</button>
-        <button class="pin-key" onclick="pinInput('8')">8</button>
-        <button class="pin-key" onclick="pinInput('9')">9</button>
-        <button class="pin-key pin-key-ghost"></button>
-        <button class="pin-key" onclick="pinInput('0')">0</button>
-        <button class="pin-key pin-back" onclick="pinBack()">⌫</button>
-      </div>
-    </div>
-  </div>
-</div>
-<div id="syncBar"></div>
-
-<!-- ════ Page: Today (Cozy v3) ════ -->
-<div class="page active" id="page-today" data-page="today">
-  <main class="app__scroll">
-
-    <!-- HERO · date + Mocha peek -->
-    <article class="hero">
-      <img class="hero__mascot anim-breath" src="img/mocha-peek.png" alt="">
-      <div class="hero__row">
-        <div>
-          <div class="hero__weekday" id="dcDay"></div>
-          <div class="hero__date" id="dcDate"></div>
-          <div class="hero__greet" id="dcClock">--:--:--</div>
+    <header class="topbar">
+      <div class="topbar__id">
+        <div class="avatar">
+          <img src="img/mocha-avatar.png" alt="" width="38" height="38">
+        </div>
+        <div class="topbar__title">
+          <span class="name">มอคค่า</span>
+          <span class="breed">Toy Poodle · 1 ปี</span>
+          <span class="breed" id="syncRow" hidden>
+            <span class="dc-dot" id="dcDot" aria-hidden="true"></span>
+            <span id="dcSyncTxt"></span>
+          </span>
         </div>
       </div>
-      <div class="hero__next">
-        <div class="hero__next-time" id="dcNext"></div>
-      </div>
-    </article>
-
-    <!-- Meal progress strip · standalone -->
-    <div class="meal-progress">
-      <span class="meal-progress__label">มื้อวันนี้</span>
-      <div class="meal-progress__dots" id="dcDots" aria-hidden="true">
-        <i></i><i></i><i></i><i></i>
-      </div>
-      <span class="meal-progress__count"><span id="dcCount">0</span><sub>/4</sub></span>
-    </div>
-
-    <!-- Streak with Mocha pack (moved up above notes) -->
-    <article class="streak" aria-label="สถิติการให้อาหารต่อเนื่อง">
-      <div class="streak__pack" aria-hidden="true">
-        <img class="anim-bob" src="img/mocha-trot.png" alt="">
-        <img class="anim-bob" src="img/mocha-trot.png" alt="">
-        <img class="anim-bob" src="img/mocha-trot.png" alt="">
-      </div>
-      <div class="streak__icon" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M12 3s4 4 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-4-1-5 0-1 1-2 1-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <button class="icon-btn" onclick="openSettings()" aria-label="ตั้งค่า">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
-      </div>
-      <div class="streak__main">
-        <div>
-          <span class="streak__count" id="streakDays">0</span>
-          <span class="streak__count-label">วันติดต่อกัน</span>
-        </div>
-        <div class="streak__quote" id="streakQuote">กินครบ 4 มื้อ · เก่งมาก</div>
-      </div>
-    </article>
+      </button>
+    </header>
 
-    <!-- Skip-meal banner -->
-    <aside id="skipBanner" class="banner banner--alert" style="display:none" role="alert"></aside>
+    <main class="app__scroll">
 
-    <!-- Notes section -->
-    <section class="section">
-      <header class="section__head">
-        <h2 class="section__title">บันทึก</h2>
-        <button class="btn btn--add" onclick="openNoteModal()" data-action="add-note">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          เพิ่ม
-        </button>
-      </header>
-      <div class="notes" id="notesList"></div>
-    </section>
+      <!-- HERO · date / count / mascot peek -->
+      <article class="hero">
+        <img class="hero__mascot anim-breath" src="img/mocha-peek.png" alt="">
 
-    <!-- Meal grid -->
-    <section class="section">
-      <header class="section__head">
-        <h2 class="section__title">การให้อาหาร</h2>
-      </header>
-      <div class="meal-grid" id="cards"></div>
-    </section>
+        <div class="hero__row">
+          <div>
+            <div class="hero__weekday" id="dcDay">—</div>
+            <div class="hero__date" id="dcDate">—</div>
+            <div class="hero__greet" id="dcClock">--:--:--</div>
+          </div>
 
-  </main>
-</div>
-
-<!-- ════ Page: Calendar ════ -->
-<div class="page" id="page-calendar">
-  <div class="wrap">
-    <div class="cal-nav">
-      <button class="cal-arr" onclick="calPrev()">‹</button>
-      <span class="cal-month" id="calTitle"></span>
-      <button class="cal-arr" onclick="calNext()">›</button>
-    </div>
-    <div class="cal-legend">
-      <span><i class="dot d-full"></i>ครบ 4 มื้อ</span>
-      <span><i class="dot d-part"></i>บางมื้อ</span>
-      <span><i class="dot d-miss"></i>ไม่มีบันทึก</span>
-      <span><i class="dot d-note"></i>มีบันทึก</span>
-      <span><i class="dot d-skip"></i>ไม่กิน</span>
-    </div>
-    <div class="cal-grid" id="calGrid"></div>
-
-    <!-- Dashboard -->
-    <div class="dash-tabs">
-      <button class="dash-tab active" id="dt-day"   onclick="setDash('day')">วันนี้</button>
-      <button class="dash-tab"        id="dt-week"  onclick="setDash('week')">สัปดาห์</button>
-      <button class="dash-tab"        id="dt-month" onclick="setDash('month')">เดือน</button>
-    </div>
-    <div class="dash-card" id="dashCard"></div>
-  </div>
-</div>
-
-<!-- ════ Page: Nutrition ════ -->
-<div class="page" id="page-nutrition">
-  <div class="nutr-wrap">
-    <div class="nutr-edit-bar" style="display:none">
-      <button class="btn-edit-cfg" id="editCfgBtn" onclick="toggleEdit()">✏️ แก้ไข</button>
-    </div>
-    <div class="hero">
-      <div class="hero-avatar"><img src="img/mocha-sit.png" alt=""></div>
-      <div class="hero-name" id="heroName">มอคค่า</div>
-      <div class="hero-breed">Toy Poodle</div>
-    </div>
-    <div class="info-card">
-      <div class="info-grid" id="infoGrid"></div>
-      <div class="info-save-row" id="infoSaveRow">
-        <button class="btn-save-info" onclick="saveDogInfo()">บันทึกข้อมูล</button>
-      </div>
-    </div>
-
-    <!-- v2: cooked-weight info card -->
-    <div class="cooked-info">
-      <span class="ci-ico">🔥</span>
-      <div>
-        <div class="ci-head">น้ำหนักทั้งหมด = อาหารหลังปรุงสุก</div>
-        <div class="ci-body">เนื้อสัตว์/ผัก = ต้มหรืออบไม่ใส่น้ำมัน · กรัมที่แสดงคือน้ำหนักตอนเสิร์ฟ ไม่ใช่ตอนดิบ</div>
-      </div>
-    </div>
-
-    <!-- v2: search bar -->
-    <div class="search-wrap">
-      <span class="search-ico">🔍</span>
-      <input type="text" id="nutrSearch" class="search-input" placeholder="ค้นหาอาหาร / สิ่งที่ห้าม / เคล็ดลับ…" oninput="nutrSearch(this.value)">
-      <button class="search-clear" onclick="document.getElementById('nutrSearch').value='';nutrSearch('')" aria-label="ล้าง">✕</button>
-    </div>
-    <div class="search-hint" id="searchHint"></div>
-
-    <button class="sec-toggle" onclick="toggleNutrSection('calcCard',this)">🧮 คำนวณอาหารต่อมื้อ <span class="st-arrow open">›</span></button>
-    <div class="nutr-section is-open" id="calcCard">
-      <div class="calc-no-weight" id="calcNoWeight">กรุณากรอกน้ำหนักในโปรไฟล์ก่อน</div>
-      <div id="calcBody" style="display:none">
-        <div class="calc-label">เป้าหมาย</div>
-        <div class="goal-grid">
-          <button class="goal-btn" id="gb-lose" onclick="setCalcGoal('lose')">
-            <span class="goal-ico">📉</span>
-            <span class="goal-name">ลดน้ำหนัก</span>
-          </button>
-          <button class="goal-btn active" id="gb-maintain" onclick="setCalcGoal('maintain')">
-            <span class="goal-ico">⚖️</span>
-            <span class="goal-name">ปกติ</span>
-          </button>
-          <button class="goal-btn" id="gb-gain" onclick="setCalcGoal('gain')">
-            <span class="goal-ico">📈</span>
-            <span class="goal-name">เพิ่มน้ำหนัก</span>
-          </button>
-        </div>
-        <div class="goal-tip" id="goalTip"></div>
-        <div class="calc-summary" id="calcSummary"></div>
-        <div class="calc-label">สูตรอาหาร</div>
-        <div class="combo-grid" id="comboGrid">
-          <button class="combo-btn active" id="cb-dry" onclick="setCalcCombo('dry')">อาหารเม็ด<br><span>อย่างเดียว</span></button>
-          <button class="combo-btn" id="cb-meat" onclick="setCalcCombo('dry+meat')">เม็ด + เนื้อ</button>
-          <button class="combo-btn" id="cb-veg" onclick="setCalcCombo('dry+meat+veg')">เม็ด + เนื้อ<br><span>+ ผัก</span></button>
-        </div>
-        <div id="meatPickerWrap" style="display:none">
-          <div class="calc-label" style="margin-top:12px">เนื้อสัตว์</div>
-          <div class="chip-wrap" id="meatPicker"></div>
-        </div>
-        <div class="calc-result" id="calcResult"></div>
-        <div class="calc-sources">
-          <div class="src-title">หมายเหตุ — แหล่งอ้างอิง</div>
-          <div>ค่าพลังงานคำนวณจากสมการ Resting Energy Requirement (RER = 70 × น้ำหนัก<sup>0.75</sup>) ตาม <strong>NRC Nutrient Requirements of Dogs and Cats (2006)</strong> และแนวทางของ <strong>AAFCO</strong> · ค่าแคลอรี่วัตถุดิบอ้างอิงจาก USDA FoodData Central และ Merck Veterinary Manual · ข้อมูลนี้ใช้เพื่อประกอบการตัดสินใจเบื้องต้นเท่านั้น ควรปรึกษาสัตวแพทย์เพื่อวางแผนโภชนาการที่เหมาะสมกับสุนัขของคุณ</div>
-        </div>
-      </div>
-    </div>
-
-    <button class="sec-toggle" onclick="toggleNutrSection('foodProductGrid',this)">🛒 อาหารเม็ดแนะนำสำหรับ Toy Poodle <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="foodProductGrid"></div>
-
-    <button class="sec-toggle" onclick="toggleNutrSection('nutrCanEat',this)" aria-expanded="false">✅ อาหารที่กินได้ <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="nutrCanEat">
-    <div class="food-group">
-      <div class="group-header"><div>
-        <div style="display:flex;align-items:center;gap:8px"><span class="group-badge gb-rec">⭐ แนะนำ</span></div>
-        <div class="group-title" style="margin-top:6px">อาหารหลักที่ควรให้</div>
-        <div class="group-desc">เหมาะสำหรับ Toy Poodle อายุ 1 ปี ให้เป็นประจำได้</div>
-      </div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-kibble.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">อาหารเม็ด Small Breed Adult</div><div class="fi-note">เลือก formula สำหรับสุนัขโตพันธุ์เล็ก เช่น Royal Canin Toy Poodle, Hill's Science Diet เปลี่ยนจาก Puppy formula ได้แล้ว</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-chicken.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">เนื้อไก่ <span class="cooked-badge">🔥 สุก</span></div><div class="fi-note">ต้มหรืออบ ไม่มีเกลือ ไม่มีเครื่องเทศ แยกกระดูกออกให้หมด แหล่งโปรตีนที่ดีที่สุด · 165 kcal/100g</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-fish.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">ปลาแซลมอน / ปลาทู <span class="cooked-badge">🔥 สุก</span></div><div class="fi-note">มี Omega-3 ดีต่อผิวหนังและขน ต้มหรืออบ ไม่ผัดน้ำมัน ระวังก้างชิ้นเล็ก · 160 kcal/100g</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-carrot.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">แครอท</div><div class="fi-note">ดิบหรือต้มสุกก็ได้ ดีต่อฟัน มีเบต้าแคโรทีนสูง เหมาะเป็น treat แทนขนม</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-bowl.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">น้ำสะอาดตลอดวัน</div><div class="fi-note">เปลี่ยนน้ำทุกวัน Toy Poodle ตัวเล็กมาก dehydrate ได้เร็ว ควรมีชามน้ำ 2 จุดในบ้าน</div></div></div>
-    </div>
-    <div class="food-group">
-      <div class="group-header"><div>
-        <div style="display:flex;align-items:center;gap:8px"><span class="group-badge gb-gen">👍 กินทั่วไป</span></div>
-        <div class="group-title" style="margin-top:6px">อาหารที่กินได้ตามปกติ</div>
-        <div class="group-desc">ให้ได้แต่ไม่ต้องให้ทุกวัน</div>
-      </div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-broccoli.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">บรอคเคอลี / กะหล่ำปลี</div><div class="fi-note">ต้มนิ่ม ให้เป็นส่วนน้อย (ไม่เกิน 10% ของมื้อ) ช่วยระบบย่อย</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-leaf.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">แตงกวา / บวบ</div><div class="fi-note">แคลอรี่ต่ำมาก เหมาะเป็น treat สำหรับสุนัขที่ต้องควบคุมน้ำหนัก</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-apple.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">แอปเปิ้ล (ไม่มีเมล็ด)</div><div class="fi-note">ต้องเอาเมล็ดและแกนออกทุกครั้ง เมล็ดมี amygdalin ซึ่งเป็นพิษ ให้เป็น treat</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-apple.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">บลูเบอร์รี่</div><div class="fi-note">Antioxidant สูง ให้ 3–5 เม็ด/ครั้ง ไม่ควรให้มาก</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-rice.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">ข้าวสุก (ข้าวกล้อง/ข้าวขาว)</div><div class="fi-note">ไม่ใส่เครื่องปรุงใดๆ ให้เป็นส่วนเสริม ไม่ใช่อาหารหลัก แหล่งคาร์โบไฮเดรต</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-beef.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">เนื้อวัว / เนื้อหมู <span class="cooked-badge">🔥 สุก</span></div><div class="fi-note">ต้มหรืออบ ไม่มีเกลือ ตัดมันออก ให้น้อยกว่าไก่ เนื่องจากไขมันสูงกว่า · 180 kcal/100g</div></div></div>
-    </div>
-    <div class="food-group">
-      <div class="group-header"><div>
-        <div style="display:flex;align-items:center;gap:8px"><span class="group-badge gb-supp">💊 อาหารเสริม</span></div>
-        <div class="group-title" style="margin-top:6px">ให้เสริมได้ แต่ไม่ใช่อาหารหลัก</div>
-        <div class="group-desc">ให้ปริมาณน้อย เป็นครั้งคราว หรือตามคำแนะนำสัตวแพทย์</div>
-      </div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-egg.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">ไข่ต้ม</div><div class="fi-note">โปรตีนสูง ให้ไม่เกิน 1/2 ฟอง 2–3 ครั้ง/สัปดาห์ ไข่ขาวดิบย่อยยาก ต้องต้มเสมอ</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-broccoli.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">ฟักทอง (ต้มสุก)</div><div class="fi-note">ไฟเบอร์สูง ช่วยระบบย่อยเมื่อท้องเสียหรือท้องผูก ให้ 1–2 ช้อนชา/มื้อ</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-bowl.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">น้ำมันมะพร้าว</div><div class="fi-note">ช่วยขนและผิวหนัง ให้ 1/4 ช้อนชา/วัน ถ้าให้มากเกินอาจท้องเสีย</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-fish.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">น้ำมันปลา (Fish Oil)</div><div class="fi-note">Omega-3 ดีต่อขนและสมอง ให้ตามคำแนะนำบนฉลาก ไม่ควรให้เกินขนาด</div></div></div>
-      <div class="food-item"><span class="fi-ico"><img src="img/food-bone.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div><div class="fi-name">Dental Treat / กระดูกนิ่ม</div><div class="fi-note">ช่วยขูดหินปูน เลือกขนาดเหมาะกับ Toy Poodle ไม่ให้ทุกวัน (แคลอรี่เพิ่ม)</div></div></div>
-    </div>
-
-    </div><!-- /nutrCanEat -->
-
-    <button class="sec-toggle" onclick="toggleNutrSection('nutrDanger',this)" aria-expanded="false">🚫 อาหารต้องห้าม <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="nutrDanger">
-    <div class="danger-group">
-      <div style="padding:14px 16px 10px;border-bottom:.5px solid var(--sep)">
-        <span style="font-size:.72rem;color:var(--err);font-weight:800;text-transform:uppercase;letter-spacing:.5px">⚠️ อันตรายถึงชีวิต — ห้ามให้เด็ดขาด</span>
-      </div>
-      <div class="danger-item crit"><span class="di-ico"><img src="img/danger-chocolate.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">ช็อกโกแลต</span><span class="di-lv lv-crit">🚨 ร้ายแรงมาก</span></div><div class="di-why">มี Theobromine ย่อยสลายไม่ได้ ทำให้ชัก หัวใจเต้นผิดจังหวะ อาจเสียชีวิต Dark chocolate อันตรายสูงสุด</div></div></div>
-      <div class="danger-item crit"><span class="di-ico"><img src="img/danger-xylitol.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">Xylitol (น้ำตาลเทียม)</span><span class="di-lv lv-crit">🚨 ร้ายแรงมาก</span></div><div class="di-why">พบในหมากฝรั่ง ขนมไร้น้ำตาล ยาสีฟันบางยี่ห้อ ทำให้น้ำตาลในเลือดต่ำฉับพลันและตับวาย</div></div></div>
-      <div class="danger-item crit"><span class="di-ico"><img src="img/danger-grape.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">องุ่น &amp; ลูกเกด</span><span class="di-lv lv-crit">🚨 ร้ายแรงมาก</span></div><div class="di-why">ทำให้ไตวายเฉียบพลัน แม้ปริมาณน้อยมากก็อันตราย ยังไม่ทราบสารพิษที่แน่ชัด</div></div></div>
-      <div class="danger-item crit"><span class="di-ico"><img src="img/danger-caffeine.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">คาเฟอีน (กาแฟ ชา โกโก้)</span><span class="di-lv lv-crit">🚨 ร้ายแรงมาก</span></div><div class="di-why">กระตุ้นระบบประสาทและหัวใจมากเกินไป ทำให้ชัก หัวใจวาย</div></div></div>
-      <div class="danger-item crit"><span class="di-ico"><img src="img/danger-wine.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">แอลกอฮอล์ทุกชนิด</span><span class="di-lv lv-crit">🚨 ร้ายแรงมาก</span></div><div class="di-why">ตับสุนัขย่อยสลายแอลกอฮอล์ไม่ได้ แม้ปริมาณเล็กน้อยก็เป็นพิษ</div></div></div>
-    </div>
-    <div class="danger-group">
-      <div style="padding:14px 16px 10px;border-bottom:.5px solid var(--sep)">
-        <span style="font-size:.72rem;color:var(--warn);font-weight:800;text-transform:uppercase;letter-spacing:.5px">⚠️ อันตรายสูง</span>
-      </div>
-      <div class="danger-item high"><span class="di-ico"><img src="img/danger-onion.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">หัวหอม กระเทียม ต้นหอม</span><span class="di-lv lv-high">อันตรายสูง</span></div><div class="di-why">มี thiosulfate ทำลายเม็ดเลือดแดง ทำให้โลหิตจาง ทั้งดิบและปรุงสุก ทั้งในอาหารมนุษย์</div></div></div>
-      <div class="danger-item high"><span class="di-ico"><img src="img/danger-avocado.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">อาโวคาโด</span><span class="di-lv lv-high">อันตรายสูง</span></div><div class="di-why">มี Persin ทำให้อาเจียน ท้องเสีย ส่งผลต่อหัวใจ ทั้งเนื้อ เมล็ด และใบ</div></div></div>
-      <div class="danger-item high"><span class="di-ico"><img src="img/danger-macadamia.png" alt="" width="22" height="22" style="display:block;width:24px;height:24px;object-fit:cover;border-radius:7px"></span><div class="di-right"><div class="di-top"><span class="di-name">แมคคาเดเมียนัท</span><span class="di-lv lv-high">อันตรายสูง</span></div><div class="di-why">ทำให้กล้ามเนื้ออ่อนแรง สั่น อุณหภูมิร่างกายสูง โดยเฉพาะขาหลัง</div></div></div>
-      <div class="danger-item high"><span class="di-ico">🦴</span><div class="di-right"><div class="di-top"><span class="di-name">กระดูกปรุงสุก</span><span class="di-lv lv-high">อันตรายสูง</span></div><div class="di-why">แตกเป็นเสี้ยนแหลมบาดหลอดอาหาร/ลำไส้ได้ กระดูกดิบรับได้แต่มีความเสี่ยงแบคทีเรีย</div></div></div>
-    </div>
-    <div class="danger-group">
-      <div style="padding:14px 16px 10px;border-bottom:.5px solid var(--sep)">
-        <span style="font-size:.72rem;color:#aeaeb2;font-weight:800;text-transform:uppercase;letter-spacing:.5px">ควรระวัง</span>
-      </div>
-      <div class="danger-item mid"><span class="di-ico">🥛</span><div class="di-right"><div class="di-top"><span class="di-name">นม &amp; ผลิตภัณฑ์นม</span><span class="di-lv lv-mid">ระวัง</span></div><div class="di-why">สุนัขส่วนใหญ่แพ้แล็กโตส ทำให้ท้องเสีย ถ้าให้ต้องปริมาณน้อยมาก</div></div></div>
-      <div class="danger-item mid"><span class="di-ico">🧂</span><div class="di-right"><div class="di-top"><span class="di-name">เกลือ &amp; อาหารรสเค็ม</span><span class="di-lv lv-mid">ระวัง</span></div><div class="di-why">ไตสุนัขรับโซเดียมได้น้อยมาก ห้ามให้อาหารมนุษย์ที่ปรุงรสแล้วโดยตรง</div></div></div>
-      <div class="danger-item mid"><span class="di-ico">🍬</span><div class="di-right"><div class="di-top"><span class="di-name">อาหารหวานจัด / น้ำตาลมาก</span><span class="di-lv lv-mid">ระวัง</span></div><div class="di-why">ฟันผุ น้ำหนักเกิน และอาจทำให้เป็นเบาหวานระยะยาว</div></div></div>
-    </div>
-
-    </div><!-- /nutrDanger -->
-
-    <button class="sec-toggle" onclick="toggleNutrSection('nutrTips',this)" aria-expanded="false">💡 คำแนะนำการดูแล <span class="st-arrow">›</span></button>
-    <div class="nutr-section" id="nutrTips">
-    <div class="tips-group">
-      <div class="tip-item"><span class="tip-ico">🔄</span><div><div class="tip-head">เปลี่ยนจาก Puppy → Adult Formula</div><div class="tip-body">Toy Poodle อายุ 1 ปีถือเป็นผู้ใหญ่แล้ว ควรเปลี่ยนอาหารเป็น Small Breed Adult เพื่อป้องกันน้ำหนักเกิน โดยค่อยๆ ผสม 25% ต่อสัปดาห์ใน 4 สัปดาห์</div></div></div>
-      <div class="tip-item"><span class="tip-ico">⚡</span><div><div class="tip-head">ระวัง Hypoglycemia (น้ำตาลต่ำ)</div><div class="tip-body">Toy Poodle ตัวเล็กมาก น้ำตาลในเลือดต่ำได้ง่ายถ้าอดอาหารนาน ควรให้ตรงเวลาสม่ำเสมอ ไม่ควรข้ามมื้อเกิน 12 ชม.</div></div></div>
-      <div class="tip-item"><span class="tip-ico">📊</span><div><div class="tip-head">ตรวจ Body Condition Score</div><div class="tip-body">คลำซี่โครงได้แต่ไม่เห็นด้วยตา เห็น waist เล็กน้อยเมื่อมองจากด้านบน = น้ำหนักดี ชั่งน้ำหนักทุกเดือน</div></div></div>
-      <div class="tip-item"><span class="tip-ico">🦷</span><div><div class="tip-head">ดูแลช่องปาก</div><div class="tip-body">Toy Poodle ฟันผุและหินปูนง่ายมาก แนะนำแปรงฟัน 2–3 ครั้ง/สัปดาห์ด้วยยาสีฟันสัตว์ หรือให้ dental treat สม่ำเสมอ</div></div></div>
-      <div class="tip-item"><span class="tip-ico">🏥</span><div><div class="tip-head">ปรึกษาสัตวแพทย์เป็นประจำ</div><div class="tip-body">ตรวจสุขภาพปีละ 1–2 ครั้ง ข้อมูลนี้เป็นแนวทางทั่วไป ควรปรึกษาสัตวแพทย์สำหรับโปรแกรมโภชนาการที่เหมาะกับมอคค่าโดยเฉพาะ</div></div></div>
-    </div>
-    <div class="emergency">
-      <h3>🚨 มอคค่ากินของผิดต้องทำอย่างไร?</h3>
-      <p>โทรหาสัตวแพทย์ทันที อย่ารอให้มีอาการ<br>
-      บอก: สิ่งที่กิน + ปริมาณโดยประมาณ + เวลาที่กิน<br>
-      <strong>ห้ามทำให้อาเจียนเองโดยไม่ได้รับคำสั่งจากสัตวแพทย์</strong></p>
-    </div>
-    </div><!-- /nutrTips -->
-  </div>
-</div>
-
-<!-- ════ Tab bar (Cozy v3) ════ -->
-<nav class="tabbar">
-  <div class="tabbar__inner">
-    <button class="tab tab--active" data-tab="today" onclick="showPage('today',this)" role="tab" aria-selected="true" aria-label="หน้าวันนี้">
-      <span class="ico" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M3 11l9-7 9 7v9a2 2 0 01-2 2h-4v-7H9v7H5a2 2 0 01-2-2v-9z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        </svg>
-      </span>
-      <span class="tab__label">วันนี้</span>
-    </button>
-    <button class="tab" data-tab="calendar" onclick="showPage('calendar',this)" role="tab" aria-selected="false" aria-label="ปฏิทิน">
-      <span class="ico" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <span class="tab__label">ปฏิทิน</span>
-    </button>
-    <button class="tab" data-tab="nutrition" onclick="showPage('nutrition',this)" role="tab" aria-selected="false" aria-label="โภชนาการ">
-      <span class="ico" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M12 21s-7-5-7-11a7 7 0 0114 0c0 6-7 11-7 11z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-          <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="1.8"/>
-        </svg>
-      </span>
-      <span class="tab__label">โภชนาการ</span>
-    </button>
-  </div>
-</nav>
-
-<!-- ════ Feed Modal (3 steps) ════ -->
-<div class="ov" id="ovFeed">
-  <div class="modal">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="modal-head">
-        <span class="modal-title" id="fmMealLabel">บันทึกการให้อาหาร</span>
-        <button class="btn-close" onclick="closeFeed()">✕</button>
-      </div>
-
-      <div class="steps">
-        <div class="si active" id="si1">1</div>
-        <div class="si-line" id="sl1"></div>
-        <div class="si" id="si2">2</div>
-        <div class="si-line" id="sl2"></div>
-        <div class="si" id="si3">3</div>
-      </div>
-      <div class="step-label" id="stepLabel">เลือกผู้ให้อาหาร</div>
-
-      <div id="fmS1">
-        <div class="feeder-grid" id="feederGrid"></div>
-        <div class="feeder-other" id="feederOther" style="display:none">
-          <input id="customFeederTxt" type="text" placeholder="พิมพ์ชื่อ...">
-        </div>
-      </div>
-
-      <div id="fmS2" style="display:none">
-        <div class="food-list" id="foodList"></div>
-        <div id="subMeat" style="display:none">
-          <div class="sub-sec">
-            <div class="sub-sec-label">เลือกเนื้อสัตว์ (เลือกได้หลายอย่าง)</div>
-            <div class="chip-wrap" id="meatChips"></div>
+          <div class="hero__count">
+            <div class="hero__count-label">มื้อวันนี้</div>
+            <div class="hero__count-value"><span id="dcCount">0</span><sub>/4</sub></div>
+            <div class="hero__dots" id="dcDots" aria-hidden="true">
+              <i></i><i></i><i></i><i></i>
+            </div>
           </div>
         </div>
-        <div id="subVeg" style="display:none">
-          <div class="sub-sec">
-            <div class="sub-sec-label">เลือกผัก (เลือกได้หลายอย่าง)</div>
-            <div class="chip-wrap" id="vegChips"></div>
+
+        <div class="hero__next">
+          <div>
+            <div class="hero__next-label">มื้อถัดไป</div>
+            <div class="hero__next-time" id="dcNext">—</div>
           </div>
         </div>
-      </div>
+      </article>
 
-      <div id="fmS3" style="display:none">
-        <div class="period-grid" id="periodGrid"></div>
-        <div class="or-divider"><div class="or-line"></div><span class="or-text">หรือระบุเวลาจริง</span><div class="or-line"></div></div>
-        <div class="time-input-row">
-          <input type="time" id="customTime" onchange="onCustomTime()">
+      <!-- SKIP-MEAL BANNER -->
+      <aside id="skipBanner" class="banner banner--alert" style="display:none" role="alert"></aside>
+
+      <!-- MEAL GRID -->
+      <section class="section">
+        <header class="section__head">
+          <h2 class="section__title">การให้อาหาร</h2>
+          <span class="section__meta" id="kcalMeta"></span>
+        </header>
+        <div class="meal-grid" id="cards"></div>
+      </section>
+
+      <!-- STREAK -->
+      <article class="streak" aria-label="สถิติการให้อาหารต่อเนื่อง">
+        <div class="streak__pack" aria-hidden="true">
+          <img class="anim-bob" src="img/mocha-trot.png" alt="">
+          <img class="anim-bob" src="img/mocha-trot.png" alt="">
+          <img class="anim-bob" src="img/mocha-trot.png" alt="">
+        </div>
+        <div class="streak__icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3s4 4 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-4-1-5 0-1 1-2 1-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M7 15a5 5 0 0010 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="streak__main">
+          <div>
+            <span class="streak__count" id="streakDays">0</span>
+            <span class="streak__count-label">วันติดต่อกัน</span>
+          </div>
+          <div class="streak__quote" id="streakQuote">กินครบ 4 มื้อ · เก่งมาก</div>
+        </div>
+      </article>
+
+      <!-- NOTES -->
+      <section class="section">
+        <header class="section__head">
+          <h2 class="section__title">บันทึก</h2>
+          <button class="btn btn--add" onclick="openNoteModal()" data-action="add-note">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            เพิ่ม
+          </button>
+        </header>
+        <div class="notes" id="notesList"></div>
+      </section>
+
+    </main>
+  </section>
+
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PAGE · CALENDAR
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-calendar" aria-label="ปฏิทิน">
+
+    <header class="topbar">
+      <div class="topbar__id">
+        <div class="avatar"><img src="img/mocha-avatar.png" alt="" width="38" height="38"></div>
+        <div class="topbar__title">
+          <span class="name">ปฏิทิน</span>
+          <span class="breed" id="calSubtitle">ภาพรวม</span>
         </div>
       </div>
+      <button class="icon-btn" onclick="openSettings()" aria-label="ตั้งค่า">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </header>
 
-      <div class="step-nav">
-        <button class="btn-back" id="btnBack" style="display:none" onclick="prevStep()">‹ ย้อนกลับ</button>
-        <button class="btn-next" id="btnNext" onclick="nextStep()">ถัดไป ›</button>
+    <main class="app__scroll">
+
+      <!-- MONTH GRID -->
+      <article class="cal-card">
+        <div class="cal-head">
+          <button class="cal-nav" onclick="calPrev()" aria-label="เดือนก่อน">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 id="calTitle">—</h2>
+          <button class="cal-nav" onclick="calNext()" aria-label="เดือนถัดไป">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <div class="weekdays" aria-hidden="true">
+          <span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span>
+        </div>
+
+        <div class="cal-grid" id="calGrid" role="grid"></div>
+      </article>
+
+      <div class="legend" aria-label="คำอธิบายสี">
+        <span class="legend__item"><i style="background: var(--c-sage)"></i><span>ครบ 4 มื้อ</span></span>
+        <span class="legend__item"><i style="background: var(--c-caramel)"></i><span>บางมื้อ</span></span>
+        <span class="legend__item"><i style="background: var(--c-latte)"></i><span>ไม่มีบันทึก</span></span>
+        <span class="legend__item"><i style="background: var(--c-blush)"></i><span>มีบันทึก</span></span>
+        <span class="legend__item"><i style="background: var(--c-rust)"></i><span>ไม่กิน</span></span>
+      </div>
+
+      <!-- PERIOD TOGGLE -->
+      <div class="period" role="tablist">
+        <button class="period__btn period__btn--active" id="dt-day"   onclick="setDash('day')"   role="tab" aria-selected="true">วันนี้</button>
+        <button class="period__btn"                     id="dt-week"  onclick="setDash('week')"  role="tab" aria-selected="false">สัปดาห์</button>
+        <button class="period__btn"                     id="dt-month" onclick="setDash('month')" role="tab" aria-selected="false">เดือน</button>
+      </div>
+
+      <!-- DASHBOARD CARD -->
+      <article class="dash" id="dashCard"></article>
+
+    </main>
+  </section>
+
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PAGE · NUTRITION
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="page" id="page-nutrition" aria-label="โภชนาการ">
+
+    <header class="topbar">
+      <div class="topbar__id">
+        <div class="avatar"><img src="img/mocha-avatar.png" alt="" width="38" height="38"></div>
+        <div class="topbar__title">
+          <span class="name">โภชนาการ</span>
+          <span class="breed">กินอะไรดีนะ</span>
+        </div>
+      </div>
+      <button class="icon-btn" onclick="openSettings()" aria-label="ตั้งค่า">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="app__scroll">
+
+      <!-- PROFILE -->
+      <article class="profile" id="profileCard"></article>
+
+      <!-- 🔥 สุก banner -->
+      <aside class="banner">
+        <div class="banner__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3s4 4 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-4-1-5 0-1 1-2 1-2z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M7 15a5 5 0 0010 0" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="banner__body">
+          <div class="banner__title">น้ำหนักทั้งหมด = อาหารหลังปรุงสุก</div>
+          <p>เนื้อสัตว์/ผัก = ต้มหรืออบ ไม่ใส่น้ำมัน · กรัมที่แสดงคือน้ำหนักตอนเสิร์ฟ</p>
+        </div>
+      </aside>
+
+      <!-- SEARCH -->
+      <form class="search" role="search" onsubmit="return false;">
+        <span class="search__icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <path d="M16 16l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <input class="search__input" id="nutrSearch" type="search"
+               placeholder="ค้นหาอาหาร / สิ่งที่ห้าม / เคล็ดลับ…"
+               aria-label="ค้นหา" oninput="nutrSearch(this.value)">
+      </form>
+      <div class="search-hint" id="searchHint" style="padding:0 var(--sp-5) var(--sp-3);font-size:11px;color:var(--c-muted)"></div>
+
+      <!-- CALCULATOR -->
+      <article class="calc" id="calcCard">
+        <header class="calc__head">
+          <h2>อาหารต่อมื้อ</h2>
+          <span class="calc__formula" id="calcFormula">RER × 1.4</span>
+        </header>
+
+        <div class="calc-no-weight" id="calcNoWeight" style="font-size:13px;color:var(--c-muted);text-align:center;padding:14px 0">กรุณากรอกน้ำหนักในโปรไฟล์ก่อน</div>
+
+        <div id="calcBody" style="display:none">
+          <div class="t-micro" style="margin-bottom:6px">เป้าหมาย</div>
+          <div class="goal-row" role="radiogroup" aria-label="เป้าหมาย">
+            <button class="goal" id="gb-lose" onclick="setCalcGoal('lose')" role="radio" aria-checked="false">
+              <svg width="16" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 8l5 6 5-4 8 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              ลด
+            </button>
+            <button class="goal goal--active" id="gb-maintain" onclick="setCalcGoal('maintain')" role="radio" aria-checked="true">
+              <svg width="16" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+              ปกติ
+            </button>
+            <button class="goal" id="gb-gain" onclick="setCalcGoal('gain')" role="radio" aria-checked="false">
+              <svg width="16" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 19l5-6 5 4 8-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              เพิ่ม
+            </button>
+          </div>
+
+          <div id="calcResult"></div>
+        </div>
+      </article>
+
+      <!-- BRAND CAROUSEL -->
+      <section class="brand-row" id="brandRow"></section>
+
+      <!-- ALLOWED FOODS -->
+      <section class="foodsec" id="canEatSec">
+        <header class="foodsec__head">
+          <div class="foodsec__title">อาหารที่กินได้</div>
+          <p class="foodsec__subtitle">เหมาะสำหรับ Toy Poodle อายุ 1 ปี ให้เป็นประจำได้</p>
+        </header>
+        <div class="foodsec__list" id="canEatList"></div>
+      </section>
+
+      <!-- FORBIDDEN FOODS -->
+      <section class="foodsec foodsec--danger" id="dangerSec">
+        <header class="foodsec__head">
+          <div class="foodsec__title">อาหารต้องห้าม</div>
+          <p class="foodsec__subtitle">อันตรายถึงชีวิต — ห้ามให้เด็ดขาด</p>
+        </header>
+        <div class="foodsec__list" id="dangerList"></div>
+      </section>
+
+      <!-- TIPS -->
+      <section class="foodsec" id="tipsSec">
+        <header class="foodsec__head">
+          <div class="foodsec__title">คำแนะนำการดูแล</div>
+        </header>
+        <div class="foodsec__list" id="tipsList"></div>
+      </section>
+
+    </main>
+  </section>
+
+
+  <!-- ════════════════════════════════════════════════════════════════
+       TAB BAR (icon-only)
+       ════════════════════════════════════════════════════════════════ -->
+  <nav class="tabbar" role="tablist" aria-label="หน้าหลัก">
+    <div class="tabbar__inner">
+      <button class="tab tab--active" data-tab="today" onclick="showPage('today',this)" role="tab" aria-selected="true" aria-label="วันนี้">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-7h-6v7H4a1 1 0 01-1-1v-9z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="tab" data-tab="calendar" onclick="showPage('calendar',this)" role="tab" aria-selected="false" aria-label="ปฏิทิน">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tab" data-tab="nutrition" onclick="showPage('nutrition',this)" role="tab" aria-selected="false" aria-label="โภชนาการ">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 12h18a8 8 0 01-8 8h-2a8 8 0 01-8-8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9" cy="8" r="2" stroke="currentColor" stroke-width="1.6"/><circle cx="15" cy="8" r="2" stroke="currentColor" stroke-width="1.6"/></svg>
+      </button>
+    </div>
+  </nav>
+
+
+  <!-- ════════════════════════════════════════════════════════════════
+       MODALS — kept from v2/v3 (Feed · Note · MealDetail · Day · Settings · Confirm · PIN)
+       ════════════════════════════════════════════════════════════════ -->
+
+  <!-- Confirm Sheet -->
+  <div class="ov" id="ovConfirm" role="dialog" aria-modal="true">
+    <div class="modal confirm-sheet">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="confirm-icon" id="confirmIcon">⚠️</div>
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-btns">
+          <button class="btn-back" onclick="confirmNo()" id="confirmNoBtn">ยกเลิก</button>
+          <button class="btn-next confirm-yes" onclick="confirmYes()" id="confirmYesBtn">ยืนยัน</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ════ Note Add Modal ════ -->
-<div class="ov" id="ovNote">
-  <div class="modal">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="modal-head">
-        <span class="modal-title">เพิ่มบันทึก</span>
-        <button class="btn-close" onclick="closeNoteModal()">✕</button>
+  <!-- PIN Dialog -->
+  <div class="ov" id="ovPin" role="dialog" aria-modal="true" aria-label="ยืนยันตัวตน Admin">
+    <div class="modal pin-sheet">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="modal-head">
+          <span class="modal-title">🔐 รหัส Admin</span>
+          <button class="btn-close" onclick="closePin()" aria-label="ปิด">✕</button>
+        </div>
+        <div class="pin-dots" id="pinDots">
+          <div class="pin-dot"></div><div class="pin-dot"></div>
+          <div class="pin-dot"></div><div class="pin-dot"></div>
+          <div class="pin-dot"></div><div class="pin-dot"></div>
+        </div>
+        <div class="pin-hint" id="pinHint">ใส่รหัส 6 หลัก</div>
+        <div class="pin-grid">
+          <button class="pin-key" onclick="pinInput('1')">1</button>
+          <button class="pin-key" onclick="pinInput('2')">2</button>
+          <button class="pin-key" onclick="pinInput('3')">3</button>
+          <button class="pin-key" onclick="pinInput('4')">4</button>
+          <button class="pin-key" onclick="pinInput('5')">5</button>
+          <button class="pin-key" onclick="pinInput('6')">6</button>
+          <button class="pin-key" onclick="pinInput('7')">7</button>
+          <button class="pin-key" onclick="pinInput('8')">8</button>
+          <button class="pin-key" onclick="pinInput('9')">9</button>
+          <button class="pin-key pin-key-ghost"></button>
+          <button class="pin-key" onclick="pinInput('0')">0</button>
+          <button class="pin-key pin-back" onclick="pinBack()">⌫</button>
+        </div>
       </div>
-      <div style="font-size:.8rem;color:var(--t2);font-weight:700;margin-bottom:8px">ระดับความสำคัญ</div>
-      <div style="display:flex;gap:8px;margin-bottom:14px">
-        <button class="pri-sel" id="ps-high" onclick="setPri('high')">🔴 สำคัญมาก</button>
-        <button class="pri-sel active" id="ps-mid" onclick="setPri('mid')">🟡 ปกติ</button>
-        <button class="pri-sel" id="ps-low" onclick="setPri('low')">⚪ ทั่วไป</button>
-      </div>
-      <textarea id="noteTextInput" placeholder="เช่น: มอคค่าไม่กินข้าวเช้า, ให้ยาพยาธิแล้ว..."></textarea>
-      <button class="btn-save" onclick="saveNote()">บันทึก</button>
     </div>
   </div>
-</div>
 
-<!-- ════ Meal Detail Modal ════ -->
-<div class="ov" id="ovMealDetail">
-  <div class="modal">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="modal-head">
-        <span class="modal-title" id="mdTitle"></span>
-        <button class="btn-close" onclick="closeMealDetail()">✕</button>
+  <!-- Feed Modal (3 steps) -->
+  <div class="ov" id="ovFeed">
+    <div class="modal">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="modal-head">
+          <span class="modal-title" id="fmMealLabel">บันทึกการให้อาหาร</span>
+          <button class="btn-close" onclick="closeFeed()">✕</button>
+        </div>
+
+        <div class="steps">
+          <div class="si active" id="si1">1</div>
+          <div class="si-line" id="sl1"></div>
+          <div class="si" id="si2">2</div>
+          <div class="si-line" id="sl2"></div>
+          <div class="si" id="si3">3</div>
+        </div>
+        <div class="step-label" id="stepLabel">เลือกผู้ให้อาหาร</div>
+
+        <div id="fmS1">
+          <div class="feeder-grid" id="feederGrid"></div>
+          <div class="feeder-other" id="feederOther" style="display:none">
+            <input id="customFeederTxt" type="text" placeholder="พิมพ์ชื่อ...">
+          </div>
+        </div>
+
+        <div id="fmS2" style="display:none">
+          <div class="food-list" id="foodList"></div>
+          <div id="subMeat" style="display:none">
+            <div class="sub-sec">
+              <div class="sub-sec-label">เลือกเนื้อสัตว์ (เลือกได้หลายอย่าง)</div>
+              <div class="chip-wrap" id="meatChips"></div>
+            </div>
+          </div>
+          <div id="subVeg" style="display:none">
+            <div class="sub-sec">
+              <div class="sub-sec-label">เลือกผัก (เลือกได้หลายอย่าง)</div>
+              <div class="chip-wrap" id="vegChips"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="fmS3" style="display:none">
+          <div class="period-grid" id="periodGrid"></div>
+          <div class="or-divider"><div class="or-line"></div><span class="or-text">หรือระบุเวลาจริง</span><div class="or-line"></div></div>
+          <div class="time-input-row">
+            <input type="time" id="customTime" onchange="onCustomTime()">
+          </div>
+        </div>
+
+        <div class="step-nav">
+          <button class="btn-back" id="btnBack" style="display:none" onclick="prevStep()">‹ ย้อนกลับ</button>
+          <button class="btn-next" id="btnNext" onclick="nextStep()">ถัดไป ›</button>
+        </div>
       </div>
-      <div id="mdBody"></div>
     </div>
   </div>
-</div>
 
-<!-- ════ Day Detail Modal ════ -->
-<div class="ov" id="ovDay">
-  <div class="modal">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="modal-head">
-        <span class="modal-title" id="dayTitle"></span>
-        <button class="btn-close" onclick="closeDay()">✕</button>
+  <!-- Note Add Modal -->
+  <div class="ov" id="ovNote">
+    <div class="modal">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="modal-head">
+          <span class="modal-title">เพิ่มบันทึก</span>
+          <button class="btn-close" onclick="closeNoteModal()">✕</button>
+        </div>
+        <div style="font-size:.8rem;color:var(--t2);font-weight:700;margin-bottom:8px">ระดับความสำคัญ</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="pri-sel" id="ps-high" onclick="setPri('high')">🔴 สำคัญมาก</button>
+          <button class="pri-sel active" id="ps-mid" onclick="setPri('mid')">🟡 ปกติ</button>
+          <button class="pri-sel" id="ps-low" onclick="setPri('low')">⚪ ทั่วไป</button>
+        </div>
+        <textarea id="noteTextInput" placeholder="เช่น: มอคค่าไม่กินข้าวเช้า, ให้ยาพยาธิแล้ว..."></textarea>
+        <button class="btn-save" onclick="saveNote()">บันทึก</button>
       </div>
-      <div id="dayBody"></div>
     </div>
   </div>
-</div>
 
-<!-- ════ Settings Modal ════ -->
-<div class="ov" id="ovSettings">
-  <div class="modal">
-    <div class="modal-drag"></div>
-    <div class="modal-inner">
-      <div class="modal-head">
-        <span class="modal-title">ตั้งค่า</span>
-        <button class="btn-close" onclick="closeSettings()">✕</button>
+  <!-- Meal Detail Modal -->
+  <div class="ov" id="ovMealDetail">
+    <div class="modal">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="modal-head">
+          <span class="modal-title" id="mdTitle"></span>
+          <button class="btn-close" onclick="closeMealDetail()">✕</button>
+        </div>
+        <div id="mdBody"></div>
       </div>
-      <button class="btn-notif" id="notifBtn" onclick="reqNotif()">🔔 เปิดการแจ้งเตือน</button>
-      <div class="time-grid">
-        <div class="fld"><label>🌅 มื้อเช้า</label><input id="cfg0" type="time"></div>
-        <div class="fld"><label>☀️ มื้อกลางวัน</label><input id="cfg1" type="time"></div>
-        <div class="fld"><label>🌆 มื้อเย็น</label><input id="cfg2" type="time"></div>
-        <div class="fld"><label>🌙 มื้อดึก</label><input id="cfg3" type="time"></div>
-      </div>
-      <button class="btn-edit-profile" onclick="goEditProfile()">👤 แก้ไขข้อมูลโปรไฟล์</button>
-      <button class="btn-save" onclick="saveSettings()">บันทึก</button>
     </div>
   </div>
-</div>
+
+  <!-- Day Detail Modal -->
+  <div class="ov" id="ovDay">
+    <div class="modal">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="modal-head">
+          <span class="modal-title" id="dayTitle"></span>
+          <button class="btn-close" onclick="closeDay()">✕</button>
+        </div>
+        <div id="dayBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="ov" id="ovSettings">
+    <div class="modal">
+      <div class="modal-drag"></div>
+      <div class="modal-inner">
+        <div class="modal-head">
+          <span class="modal-title">ตั้งค่า</span>
+          <button class="btn-close" onclick="closeSettings()">✕</button>
+        </div>
+        <button class="btn-notif" id="notifBtn" onclick="reqNotif()">🔔 เปิดการแจ้งเตือน</button>
+        <button class="btn-notif" id="darkBtn" onclick="toggleDark()" style="margin-top:8px">🌙 โหมดมืด</button>
+        <div class="time-grid">
+          <div class="fld"><label>🌅 มื้อเช้า</label><input id="cfg0" type="time"></div>
+          <div class="fld"><label>☀️ มื้อกลางวัน</label><input id="cfg1" type="time"></div>
+          <div class="fld"><label>🌆 มื้อเย็น</label><input id="cfg2" type="time"></div>
+          <div class="fld"><label>🌙 มื้อดึก</label><input id="cfg3" type="time"></div>
+        </div>
+        <button class="btn-edit-profile" onclick="goEditProfile()">👤 แก้ไขข้อมูลโปรไฟล์</button>
+        <button class="btn-save" onclick="saveSettings()">บันทึก</button>
+      </div>
+    </div>
+  </div>
 
 </div><!-- /.app -->
 
-<!-- ════ App scripts ════ -->
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>

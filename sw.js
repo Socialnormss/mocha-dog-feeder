@@ -1,5 +1,17 @@
-const CACHE = 'dog-feeder-v7.3-cozy';
-const ASSETS = ['./index.html', './style.css', './mocha-cozy.css', './data.js', './app.js', './manifest.json', './icon.png', './firebase-config.js'];
+const CACHE = 'dog-feeder-v8-cozy';
+const ASSETS = [
+  './index.html', './style.css', './mocha-cozy.css',
+  './data.js', './app.js', './manifest.json', './icon.png', './firebase-config.js',
+  './img/mocha-avatar.png', './img/mocha-peek.png', './img/mocha-sit.png', './img/mocha-trot.png',
+  './img/time-morning.png', './img/time-noon.png', './img/time-evening.png', './img/time-night.png',
+  './img/food-bowl.png', './img/food-chicken.png', './img/food-fish.png', './img/food-carrot.png',
+  './img/food-beef.png', './img/food-broccoli.png', './img/food-apple.png', './img/food-rice.png',
+  './img/food-egg.png', './img/food-kibble.png', './img/food-leaf.png', './img/food-paw.png',
+  './img/food-fire.png',
+  './img/danger-chocolate.png', './img/danger-grape.png', './img/danger-xylitol.png',
+  './img/danger-caffeine.png', './img/danger-wine.png', './img/danger-onion.png',
+  './img/danger-avocado.png', './img/danger-macadamia.png', './img/danger-milk.png',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));

@@ -50,15 +50,16 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 
 // ── Header / date card ───────────────────────────────────────────────
 function renderHeader() {
-  document.getElementById('hdrName').textContent = 'Mocha';
   renderDateCard();
+  // calendar subtitle "ภาพรวม · MONTH"
+  const sub = document.getElementById('calSubtitle');
+  if (sub) sub.textContent = `ภาพรวม · ${MONTHS_F[new Date().getMonth()]}`;
 }
 
 function renderDateCard() {
   const cfg=getCfg(), log=getLog(), now=new Date();
   const dayEl=document.getElementById('dcDay'), dateEl=document.getElementById('dcDate');
-  if (dayEl) dayEl.textContent = DAYS_F[now.getDay()];
-  // short form in hero to avoid layout overflow with Thai full month names
+  if (dayEl) dayEl.textContent = `วัน${DAYS_F[now.getDay()]}`;
   if (dateEl) dateEl.textContent = `${now.getDate()} ${MONTHS_S[now.getMonth()]}`;
 
   let nextMin=Infinity, nextLabel='';
@@ -77,7 +78,7 @@ function renderDateCard() {
     el.classList.add('all');
   } else if (nextLabel) {
     const h=Math.floor(nextMin/60), mn=nextMin%60;
-    el.textContent=`${nextLabel} อีก ${h?h+'ชม. ':''}${mn}น.`;
+    el.textContent=`${nextLabel} · อีก ${h?h+' ชม. ':''}${mn} นาที`;
     if (nextMin<=30) el.classList.add('soon');
   } else {
     el.textContent='';
@@ -314,6 +315,42 @@ function renderToday() {
   if (dotsEl) dotsEl.innerHTML = Array.from({length: total}, (_,i) =>
     `<i${i < fedCount ? ' class="is-on"' : ''}></i>`
   ).join('');
+
+  // kcalMeta — section header "X / Y kcal"
+  const meta = document.getElementById('kcalMeta');
+  if (meta) {
+    const info = getDogInfo();
+    const w = parseFloat(info.weight);
+    if (w) {
+      const target = Math.round(70 * Math.pow(w, .75) * 1.6);
+      const perMeal = Math.round(target / total);
+      meta.textContent = `${fedCount * perMeal} / ${target} kcal`;
+    } else {
+      meta.textContent = '';
+    }
+  }
+
+  // streak (consecutive complete-day count up to today)
+  const allLog = JSON.parse(localStorage.getItem('log')||'{}');
+  let streak = 0;
+  const cursor = new Date();
+  while (true) {
+    const k = `${cursor.getFullYear()}-${cursor.getMonth()+1}-${cursor.getDate()}`;
+    const dlog = allLog[k] || {};
+    const c = MEALS.filter(m => { const f=asFed(dlog[m.id]); return f && !f.skipped; }).length;
+    if (c >= total) { streak++; cursor.setDate(cursor.getDate()-1); }
+    else break;
+  }
+  const sd = document.getElementById('streakDays');
+  if (sd) sd.textContent = streak;
+  const sq = document.getElementById('streakQuote');
+  if (sq) sq.textContent = streak === 0
+    ? 'เริ่มต้นวันใหม่กันเลย'
+    : streak < 3
+      ? 'เริ่มต้นดี · มาต่อกันได้'
+      : streak < 7
+        ? 'กินครบ 4 มื้อ · เก่งมากมอคค่า'
+        : 'นี่คือมาตรฐาน · สุดยอด!';
 }
 
 function undoFeed(id) { writeLog(id,null); renderToday(); renderHeader(); renderSkipBanner(); }
@@ -561,34 +598,42 @@ function calNext() {
 }
 
 function renderCalendar() {
-  document.getElementById('calTitle').textContent=`${MONTHS_F[calM]} ${calY+543}`;
+  document.getElementById('calTitle').innerHTML =
+    `${MONTHS_F[calM]} <span class="year">${calY+543}</span>`;
   const allLog=JSON.parse(localStorage.getItem('log')||'{}');
   const allNotes=JSON.parse(localStorage.getItem('notes')||'{}');
   const today=new Date(), grid=document.getElementById('calGrid');
   grid.innerHTML='';
-  DAYS_S.forEach(d=>{const el=document.createElement('div');el.className='dow';el.textContent=d;grid.appendChild(el);});
   const firstDow=new Date(calY,calM,1).getDay();
   const lastDate=new Date(calY,calM+1,0).getDate();
-  for(let i=0;i<firstDow;i++){const el=document.createElement('div');el.className='cday empty';grid.appendChild(el);}
+  for(let i=0;i<firstDow;i++){
+    grid.insertAdjacentHTML('beforeend', '<div></div>');
+  }
   for(let d=1;d<=lastDate;d++){
     const key=`${calY}-${calM+1}-${d}`;
     const dl=allLog[key]||{};
-    // นับเฉพาะมื้อที่กิน (ไม่นับ skipped)
     const cnt=MEALS.filter(m=>{ const f=asFed(dl[m.id]); return f && !f.skipped; }).length;
     const skipCnt=MEALS.filter(m=>{ const f=asFed(dl[m.id]); return f && f.skipped; }).length;
     const notes=(allNotes[key]||[]).length>0;
     const isToday=new Date(calY,calM,d).toDateString()===today.toDateString();
-    const isPast=new Date(calY,calM,d)<new Date(today.getFullYear(),today.getMonth(),today.getDate());
-    const el=document.createElement('div');
-    el.className='cday'; el.textContent=d;
-    if(isToday) el.classList.add('is-today');
-    if(cnt===4) el.classList.add('full');
-    else if(cnt>0) el.classList.add('partial');
-    else if(isPast&&!isToday) el.classList.add('missed');
-    if(skipCnt>0) el.classList.add('has-skip');
-    if(notes){const dot=document.createElement('div');dot.className='cnote';el.appendChild(dot);}
-    if(cnt>0||skipCnt>0||notes||isToday) el.onclick=()=>openDay(key,d);
-    grid.appendChild(el);
+    const isFuture=new Date(calY,calM,d)>new Date(today.getFullYear(),today.getMonth(),today.getDate());
+
+    let dotCls = '';
+    if (skipCnt > 0) dotCls = 'day__dot--skip';
+    else if (cnt === MEALS.length) dotCls = 'day__dot--complete';
+    else if (cnt > 0) dotCls = 'day__dot--partial';
+    else if (notes) dotCls = 'day__dot--note';
+
+    const btn = document.createElement('button');
+    btn.className = 'day';
+    btn.setAttribute('role', 'gridcell');
+    if (isToday) { btn.classList.add('day--today'); btn.setAttribute('aria-current','date'); }
+    if (isFuture) btn.classList.add('day--faded');
+    btn.innerHTML = `
+      <span class="day__n">${d}</span>
+      <span class="day__dot ${dotCls}" aria-hidden="true"></span>`;
+    if (!isFuture) btn.onclick = () => openDay(key, d);
+    grid.appendChild(btn);
   }
 }
 
@@ -673,8 +718,8 @@ function saveAdminEdit(key) {
 // ── Settings ──────────────────────────────────────────────────────────
 function goEditProfile() {
   closeSettings();
-  const nutritionBtn = document.querySelector('.tab:nth-child(3)');
-  showPage('nutrition', nutritionBtn || document.querySelectorAll('.tab')[2]);
+  const nutritionBtn = document.querySelector('[data-tab="nutrition"]');
+  if (nutritionBtn) showPage('nutrition', nutritionBtn);
   if (!isEditing) toggleEdit();
 }
 
@@ -729,11 +774,12 @@ function checkNotif() {
 // ── Nav ───────────────────────────────────────────────────────────────
 function showPage(name, btn) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>{ t.classList.remove('active'); t.setAttribute('aria-selected','false'); });
+  document.querySelectorAll('.tab').forEach(t=>{ t.classList.remove('tab--active'); t.setAttribute('aria-selected','false'); });
   document.getElementById(`page-${name}`).classList.add('active');
-  btn.classList.add('active'); btn.setAttribute('aria-selected','true');
+  btn.classList.add('tab--active'); btn.setAttribute('aria-selected','true');
   if(name==='calendar') { renderCalendar(); renderDash(); }
-  if(name==='nutrition') { renderInfo(); renderCalc(); renderFoodProducts(); }
+  if(name==='nutrition') { renderInfo(); renderCalc(); renderFoodProducts(); renderCanEat(); renderDanger(); renderTips(); }
+  window.scrollTo({ top:0, behavior:'instant' });
 }
 
 // ── Overlay dismiss (click outside) ───────────────────────────────────
@@ -833,13 +879,14 @@ function startSync() {
 function toggleDark() {
   const isDark = document.documentElement.classList.toggle('dark');
   localStorage.setItem('darkMode', isDark ? '1' : '0');
-  document.getElementById('darkBtn').textContent = isDark ? '☀️' : '🌙';
+  const btn = document.getElementById('darkBtn');
+  if (btn) btn.textContent = isDark ? '☀️ โหมดสว่าง' : '🌙 โหมดมืด';
 }
 function applyDarkMode() {
   const isDark = localStorage.getItem('darkMode') === '1';
   document.documentElement.classList.toggle('dark', isDark);
   const btn = document.getElementById('darkBtn');
-  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+  if (btn) btn.textContent = isDark ? '☀️ โหมดสว่าง' : '🌙 โหมดมืด';
 }
 
 // ── Nutrition: profile info ───────────────────────────────────────────
@@ -865,43 +912,78 @@ function autoKcal() {
 
 function renderInfo() {
   const info = getDogInfo();
-  const heroName = document.getElementById('heroName');
-  if (heroName) heroName.textContent = info.name;
-  const grid = document.getElementById('infoGrid');
-  if (!grid) return;
+  const card = document.getElementById('profileCard');
+  if (!card) return;
+  const kcalAuto = info.weight ? calcKcal(info.weight) : null;
+  const kcalDisplay = info.calories || kcalAuto || '—';
+
   if (isEditing) {
-    grid.innerHTML = `
-      <div class="info-cell"><div class="ic-label">ชื่อ</div><input class="ic-input" id="ei-name" value="${escHtml(info.name)}"></div>
-      <div class="info-cell">
-        <div class="ic-label">อายุ</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="ic-input" id="ei-age-y" type="number" min="0" max="20" placeholder="0" value="${escHtml(info.ageY||'')}" style="flex:1;min-width:0">
-          <span style="font-size:.85rem;color:var(--t2);white-space:nowrap">ปี</span>
-          <input class="ic-input" id="ei-age-m" type="number" min="0" max="11" placeholder="0" value="${escHtml(info.ageM||'')}" style="flex:1;min-width:0">
-          <span style="font-size:.85rem;color:var(--t2);white-space:nowrap">เดือน</span>
+    card.innerHTML = `
+      <div class="profile__head">
+        <div class="mascot-frame">
+          <img src="img/mocha-sit.png" alt="" class="anim-breath">
+        </div>
+        <div class="profile__id">
+          <div class="profile__breed">Toy Poodle · ♂</div>
+          <input class="ic-input" id="ei-name" value="${escHtml(info.name)}" style="font-family:var(--font-serif);font-size:26px;font-weight:500;color:var(--c-mocha);background:transparent;border:none;border-bottom:1px solid var(--rule);padding:2px 0;width:100%;letter-spacing:-.01em">
+          <div class="profile__quote">โหมดแก้ไข</div>
         </div>
       </div>
-      <div class="info-cell">
-        <div class="ic-label">น้ำหนัก</div>
-        <input class="ic-input" id="ei-weight" value="${escHtml(info.weight)}" placeholder="0.0" oninput="autoKcal()" type="number" step="0.1" min="0.5" max="10">
-        <div class="ic-unit">กิโลกรัม</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-top:var(--sp-4)">
+        <div>
+          <div class="t-micro">อายุ</div>
+          <div style="display:flex;gap:6px;margin-top:4px;align-items:center">
+            <input class="ic-input" id="ei-age-y" type="number" min="0" max="20" placeholder="0" value="${escHtml(info.ageY||'')}" style="flex:1;min-width:0;font-family:var(--font-num);padding:6px;border:1px solid var(--rule);border-radius:8px;text-align:center">
+            <span style="font-size:11px;color:var(--c-muted)">ปี</span>
+            <input class="ic-input" id="ei-age-m" type="number" min="0" max="11" placeholder="0" value="${escHtml(info.ageM||'')}" style="flex:1;min-width:0;font-family:var(--font-num);padding:6px;border:1px solid var(--rule);border-radius:8px;text-align:center">
+            <span style="font-size:11px;color:var(--c-muted)">เดือน</span>
+          </div>
+        </div>
+        <div>
+          <div class="t-micro">น้ำหนัก (kg)</div>
+          <input class="ic-input" id="ei-weight" value="${escHtml(info.weight)}" placeholder="0.0" oninput="autoKcal()" type="number" step="0.1" min="0.5" max="10" style="margin-top:4px;width:100%;font-family:var(--font-num);padding:6px;border:1px solid var(--rule);border-radius:8px;text-align:center">
+        </div>
+        <div style="grid-column:1/-1">
+          <div class="t-micro">แคลอรี่/วัน (kcal)</div>
+          <input class="ic-input" id="ei-cal" value="${escHtml(info.calories)}" placeholder="auto" type="number" style="margin-top:4px;width:100%;font-family:var(--font-num);padding:6px;border:1px solid var(--rule);border-radius:8px;text-align:center">
+          <div id="kcal-hint" style="font-size:10px;color:var(--c-sage-deep);margin-top:4px">${info.weight ? 'คำนวณอัตโนมัติ (RER × 1.6)' : 'ใส่น้ำหนักเพื่อคำนวณ'}</div>
+        </div>
       </div>
-      <div class="info-cell">
-        <div class="ic-label">แคลอรี่ต่อวัน</div>
-        <input class="ic-input" id="ei-cal" value="${escHtml(info.calories)}" placeholder="kcal" type="number">
-        <div class="ic-unit" id="kcal-hint" style="color:var(--ok);font-size:.68rem;margin-top:3px">${info.weight ? 'คำนวณอัตโนมัติ (RER × 1.6)' : 'ใส่น้ำหนักเพื่อคำนวณ'}</div>
+
+      <div style="display:flex;gap:8px;margin-top:var(--sp-4)">
+        <button class="btn btn--ghost" onclick="toggleEdit()" style="flex:1">ยกเลิก</button>
+        <button class="btn btn--primary" onclick="saveDogInfo()" style="flex:1">บันทึก</button>
       </div>`;
-    document.getElementById('infoSaveRow').style.display = 'block';
   } else {
-    const kcalAuto = info.weight ? calcKcal(info.weight) : null;
-    const kcalDisplay = info.calories || (kcalAuto ? `~${kcalAuto}` : '—');
-    const kcalNote = (!info.calories && kcalAuto) ? `<div class="ic-unit" style="color:var(--ok)">คำนวณจาก ${info.weight} กก.</div>` : '';
-    grid.innerHTML = `
-      <div class="info-cell"><div class="ic-label">ชื่อ</div><div class="ic-val">${escHtml(info.name)}</div></div>
-      <div class="info-cell"><div class="ic-label">อายุ</div><div class="ic-val">${escHtml(info.age||'—')}</div></div>
-      <div class="info-cell"><div class="ic-label">น้ำหนัก</div><div class="ic-val">${escHtml(info.weight||'—')}</div><span class="ic-unit">kg</span></div>
-      <div class="info-cell"><div class="ic-label">แคลอรี่/วัน</div><div class="ic-val">${escHtml(kcalDisplay)}</div>${kcalNote}</div>`;
-    document.getElementById('infoSaveRow').style.display = 'none';
+    card.innerHTML = `
+      <div class="profile__head">
+        <div class="mascot-frame">
+          <img src="img/mocha-sit.png" alt="มอคค่านั่ง" class="anim-breath">
+        </div>
+        <div class="profile__id">
+          <div class="profile__breed">Toy Poodle · ♂</div>
+          <h1 class="profile__name">${escHtml(info.name)}</h1>
+          <div class="profile__quote">“ เพื่อนซี้ตัวจิ๋วของบ้าน ”</div>
+        </div>
+      </div>
+      <div class="profile__stats">
+        <div class="profile__stat">
+          <div class="label">อายุ</div>
+          <div class="value">${escHtml(info.age||'—')}</div>
+        </div>
+        <div class="profile__rule"></div>
+        <div class="profile__stat">
+          <div class="label">น้ำหนัก</div>
+          <div class="value">${escHtml(info.weight||'—')} <span class="unit">kg</span></div>
+        </div>
+        <div class="profile__rule"></div>
+        <div class="profile__stat profile__stat--accent">
+          <div class="label">kcal/วัน</div>
+          <div class="value">${escHtml(kcalDisplay)}</div>
+        </div>
+        <button class="btn btn--edit" style="align-self:center" onclick="toggleEdit()">แก้ไข ›</button>
+      </div>`;
   }
 }
 
@@ -924,49 +1006,118 @@ function saveDogInfo() {
       window.db.collection('config').doc('profile').set(info);
       if (info.name) window.db.collection('config').doc('dog').set({ name: info.name }, { merge: true });
     }
-    toggleEdit(); renderInfo(); renderCalc();
+    isEditing = false; renderInfo(); renderCalc();
     showToast('บันทึกข้อมูลแล้ว','ok');
   }, '💾', 'บันทึก');
 }
 
 function toggleEdit() {
   isEditing = !isEditing;
-  const btn = document.getElementById('editCfgBtn');
-  if (btn) { btn.textContent = isEditing ? '✕ ยกเลิก' : '✏️ แก้ไข'; btn.className = isEditing ? 'btn-edit-cfg editing' : 'btn-edit-cfg'; }
   renderInfo();
 }
 
-// ── Food product grid ────────────────────────────────────────────────
+// ── Brand carousel (food products) ────────────────────────────────────
 function renderFoodProducts() {
-  const el = document.getElementById('foodProductGrid'); if (!el) return;
-  el.innerHTML = FOOD_PRODUCTS.map(cat=>`
-    <div class="fp-cat-label">${cat.cat}</div>
-    <div class="fp-grid">${cat.items.map(p=>`
-      <div class="fp-card">
-        <div class="fp-ico" style="background:${p.bg};color:${p.fg}">${p.ico}</div>
-        <div class="fp-brand">${p.brand}</div>
-        <div class="fp-name">${p.name}</div>
-        <div class="fp-kcal">${p.kcal} kcal/100g</div>
-        <div class="fp-note">${p.note}</div>
-      </div>`).join('')}
-    </div>`).join('');
+  const el = document.getElementById('brandRow'); if (!el) return;
+  // Flatten all categories into one scrollable carousel
+  const all = FOOD_PRODUCTS.flatMap(cat => cat.items.map(p => ({...p, cat: cat.cat})));
+  const cards = all.map(p => {
+    const palette = ['var(--c-blush)', 'rgba(169,184,154,.3)', 'var(--c-latte)', 'rgba(201,148,103,.25)'];
+    const bg = palette[Math.abs(p.brand.charCodeAt(0)) % palette.length];
+    const img = ['food-kibble.png','food-leaf.png','food-paw.png','food-fire.png'][Math.abs(p.brand.charCodeAt(0)) % 4];
+    return `
+      <article class="brand">
+        <div class="brand__icon" style="background:${bg};color:var(--c-mocha)">
+          <img src="img/${img}" alt="" width="22" height="22">
+        </div>
+        <div class="brand__name">${escHtml(p.brand)}</div>
+        <div class="brand__plan">${escHtml(p.name)}</div>
+        <div class="brand__kcal">${p.kcal} kcal/100g</div>
+      </article>`;
+  }).join('');
+  el.innerHTML = `
+    <header class="brand-row__head">
+      <h2>อาหารเม็ดแนะนำ</h2>
+    </header>
+    <div class="brand-row__scroll">${cards}</div>`;
 }
 
-// ── Nutrition collapsible sections ───────────────────────────────────
-function toggleNutrSection(id, btn) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const isOpen = el.classList.toggle('is-open');
-  const arrow = btn?.querySelector('.st-arrow');
-  if (arrow) arrow.classList.toggle('open', isOpen);
-  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+// ── Allowed foods · Forbidden foods · Tips (chip rows) ───────────────
+const CAN_EAT_LIST = [
+  { img:'food-bowl.png',     bg:'var(--c-latte)',          label:'อาหารเม็ด Small Breed Adult', sub:'Royal Canin · ทุกมื้อ' },
+  { img:'food-chicken.png',  bg:'var(--c-blush)',          label:'เนื้อไก่ต้ม',                  sub:'165 kcal/100g · ไม่ใส่เกลือ' },
+  { img:'food-fish.png',     bg:'rgba(126,146,122,.25)',   label:'ปลาแซลมอน / ปลาทู',           sub:'160 kcal/100g · Omega-3' },
+  { img:'food-carrot.png',   bg:'rgba(169,184,154,.4)',    label:'แครอท',                       sub:'ดิบหรือต้ม · ดีต่อฟัน' },
+  { img:'food-beef.png',     bg:'var(--c-blush)',          label:'เนื้อวัว / หมูไม่ติดมัน',     sub:'180 kcal/100g · ต้ม/อบ' },
+  { img:'food-broccoli.png', bg:'rgba(169,184,154,.4)',    label:'บรอคโคลี / กะหล่ำ',           sub:'ต้มนิ่ม · ไม่เกิน 10% ของมื้อ' },
+  { img:'food-apple.png',    bg:'var(--c-blush)',          label:'แอปเปิ้ล (ไม่มีเมล็ด)',       sub:'Treat · เอาเมล็ดออก' },
+  { img:'food-rice.png',     bg:'var(--c-latte)',          label:'ข้าวสุก',                     sub:'ส่วนเสริม · ไม่ใส่เครื่องปรุง' },
+  { img:'food-egg.png',      bg:'var(--c-latte)',          label:'ไข่ต้ม',                       sub:'1/2 ฟอง · 2-3 ครั้ง/สัปดาห์' },
+  { img:'food-bowl.png',     bg:'var(--c-latte)',          label:'น้ำสะอาด',                    sub:'เปลี่ยนทุกวัน · 2 จุดในบ้าน' },
+];
+
+const DANGER_LIST = [
+  { img:'danger-chocolate.png', label:'ช็อกโกแลต',          sub:'Theobromine · ร้ายแรง',          tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-grape.png',     label:'องุ่น & ลูกเกด',     sub:'ทำให้ไตวายเฉียบพลัน',           tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-xylitol.png',   label:'Xylitol (น้ำตาลเทียม)', sub:'หมากฝรั่ง/ขนมไร้น้ำตาล',     tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-caffeine.png',  label:'คาเฟอีน',            sub:'กาแฟ ชา โกโก้',                  tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-wine.png',      label:'แอลกอฮอล์',          sub:'ตับสุนัขย่อยไม่ได้',             tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-onion.png',     label:'หัวหอม กระเทียม',    sub:'Thiosulfate · สุก/ดิบ',          tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-avocado.png',   label:'อาโวคาโด',           sub:'Persin · ทั้งเนื้อและเมล็ด',     tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-macadamia.png', label:'แมคคาเดเมียนัท',     sub:'กล้ามเนื้ออ่อนแรง · ตัวสั่น',    tag:'ห้าม',   tagCls:'tag--danger', danger:true },
+  { img:'danger-milk.png',      label:'นม / เกลือ',         sub:'แล็กโตส · ระวัง',                tag:'ระวัง', tagCls:'tag--warn',   danger:false },
+];
+
+const TIPS_LIST = [
+  { label:'เปลี่ยน Puppy → Adult Formula', sub:'ผสม 25%/สัปดาห์ · 4 สัปดาห์' },
+  { label:'ระวัง Hypoglycemia',            sub:'ไม่ข้ามมื้อเกิน 12 ชม.' },
+  { label:'Body Condition Score',          sub:'คลำซี่โครงได้ · เห็น waist เล็กน้อย' },
+  { label:'ดูแลช่องปาก',                   sub:'แปรงฟัน 2-3 ครั้ง/สัปดาห์' },
+  { label:'ปรึกษาสัตวแพทย์',                sub:'ตรวจสุขภาพปีละ 1-2 ครั้ง' },
+];
+
+function renderCanEat() {
+  const el = document.getElementById('canEatList'); if (!el) return;
+  el.innerHTML = CAN_EAT_LIST.map(f => `
+    <article class="chip">
+      <div class="chip__icon" style="background:${f.bg}"><img src="img/${f.img}" alt="" width="17" height="17"></div>
+      <div class="chip__body">
+        <div class="chip__label">${escHtml(f.label)}</div>
+        <div class="chip__sub">${escHtml(f.sub)}</div>
+      </div>
+    </article>`).join('');
 }
 
-// ── Nutrition search (v2) — กรอง calc · canEat · danger · tips · food products
+function renderDanger() {
+  const el = document.getElementById('dangerList'); if (!el) return;
+  el.innerHTML = DANGER_LIST.map(d => `
+    <article class="chip${d.danger?' chip--danger':''}">
+      <div class="chip__icon" style="background:rgba(199,122,90,.13)"><img src="img/${d.img}" alt="" width="17" height="17"></div>
+      <div class="chip__body">
+        <div class="chip__label">${escHtml(d.label)}</div>
+        <div class="chip__sub">${escHtml(d.sub)}</div>
+      </div>
+      <span class="tag ${d.tagCls}">${d.tag}</span>
+    </article>`).join('');
+}
+
+function renderTips() {
+  const el = document.getElementById('tipsList'); if (!el) return;
+  el.innerHTML = TIPS_LIST.map(t => `
+    <article class="chip">
+      <div class="chip__icon" style="background:var(--c-latte);color:var(--c-mocha);font-size:14px">💡</div>
+      <div class="chip__body">
+        <div class="chip__label">${escHtml(t.label)}</div>
+        <div class="chip__sub">${escHtml(t.sub)}</div>
+      </div>
+    </article>`).join('');
+}
+
+// ── Nutrition search — filter chip rows + brand cards ───────────────
 function nutrSearch(q) {
   q = (q||'').trim().toLowerCase();
-  const itemSel = '#nutrCanEat .food-item, #nutrDanger .danger-item, #nutrTips .tip-item, #foodProductGrid .fp-card';
-  const items = document.querySelectorAll(itemSel);
+  const selectors = '#canEatList .chip, #dangerList .chip, #tipsList .chip, #brandRow .brand';
+  const items = document.querySelectorAll(selectors);
   let hits = 0;
   items.forEach(it => {
     const txt = it.textContent.toLowerCase();
@@ -974,66 +1125,8 @@ function nutrSearch(q) {
     it.style.display = show ? '' : 'none';
     if (show && q) hits++;
   });
-  // calculator card: ตรวจ keyword (RER, สุก, แคลอรี่, น้ำหนัก, เป้าหมาย ฯลฯ)
-  const calcKeywords = ['คำนวณ','calc','rer','แคลอรี่','kcal','สุก','น้ำหนัก','อาหารเม็ด','dry','เนื้อ','meat','ผัก','veg','goal','เป้าหมาย','ลดน้ำหนัก','เพิ่ม','ปกติ','toy poodle','poodle'];
-  const calcMatch = !q || calcKeywords.some(k => k.includes(q) || q.includes(k));
-  const calcCard = document.getElementById('calcCard');
-  const calcBtn = calcCard?.previousElementSibling;
-  if (calcCard && calcBtn) {
-    calcBtn.style.display = (calcMatch || !q) ? '' : 'none';
-    calcCard.style.display = (calcMatch || !q) ? '' : 'none';
-    if (q && calcMatch) hits++;
-  }
-
-  // เปิด section ที่มีผลลัพธ์อัตโนมัติ
-  ['nutrCanEat','nutrDanger','nutrTips','foodProductGrid'].forEach(secId => {
-    const sec = document.getElementById(secId);
-    const btn = sec?.previousElementSibling;
-    if (!sec || !btn) return;
-    const hasHit = q && [...sec.querySelectorAll('.food-item,.danger-item,.tip-item,.fp-card')].some(el => el.style.display !== 'none');
-    if (q && hasHit && !sec.classList.contains('is-open')) {
-      sec.classList.add('is-open');
-      btn.querySelector('.st-arrow')?.classList.add('open');
-      btn.setAttribute('aria-expanded','true');
-    }
-  });
-
-  // ซ่อน group/header ที่ไม่มี item โผล่
-  document.querySelectorAll('#nutrCanEat .food-group, #nutrDanger .danger-group, #nutrTips .tips-group').forEach(g => {
-    const visible = [...g.querySelectorAll('.food-item,.danger-item,.tip-item')].some(el => el.style.display !== 'none');
-    g.style.display = visible || !q ? '' : 'none';
-  });
-
   const hint = document.getElementById('searchHint');
   if (hint) hint.textContent = q ? (hits ? `พบ ${hits} รายการ` : 'ไม่พบรายการ — ลองคำอื่น') : '';
-}
-
-let collapsibleReady = false;
-function makeCollapsible() {
-  if (collapsibleReady) return;
-  collapsibleReady = true;
-  document.querySelectorAll('#page-nutrition .food-item').forEach(item => {
-    const note = item.querySelector('.fi-note'); if (!note) return;
-    const db = document.createElement('div'); db.className = 'detail-body'; db.innerHTML = note.innerHTML;
-    note.replaceWith(db);
-    const icon = document.createElement('span'); icon.className = 'expand-icon'; icon.textContent = '›';
-    item.appendChild(icon);
-    item.addEventListener('click', () => item.classList.toggle('open'));
-  });
-  document.querySelectorAll('#page-nutrition .danger-item').forEach(item => {
-    const why = item.querySelector('.di-why'); if (!why) return;
-    why.classList.add('detail-body'); why.classList.remove('di-why');
-    const icon = document.createElement('span'); icon.className = 'expand-icon'; icon.textContent = '›';
-    item.querySelector('.di-right')?.appendChild(icon);
-    item.addEventListener('click', () => item.classList.toggle('open'));
-  });
-  document.querySelectorAll('#page-nutrition .tip-item').forEach(item => {
-    const body = item.querySelector('.tip-body'); if (!body) return;
-    body.classList.add('detail-body'); body.classList.remove('tip-body');
-    const icon = document.createElement('span'); icon.className = 'expand-icon'; icon.textContent = '›';
-    item.querySelector('.tip-ico')?.after(icon);
-    item.addEventListener('click', () => item.classList.toggle('open'));
-  });
 }
 
 // ── Toast ────────────────────────────────────────────────────────────
@@ -1099,93 +1192,68 @@ let calcGoal  = 'maintain';
 
 function setCalcGoal(g) {
   calcGoal = g;
-  ['lose','maintain','gain'].forEach(k => document.getElementById(`gb-${k}`)?.classList.remove('active'));
-  document.getElementById(`gb-${g}`)?.classList.add('active');
-  renderCalc();
-}
-
-function setCalcCombo(c) {
-  calcCombo = c;
-  ['dry','meat','veg'].forEach(k => document.getElementById(`cb-${k}`)?.classList.remove('active'));
-  document.getElementById(`cb-${c==='dry'?'dry':c==='dry+meat'?'meat':'veg'}`)?.classList.add('active');
-  document.getElementById('meatPickerWrap').style.display = c !== 'dry' ? 'block' : 'none';
-  renderCalc();
-}
-
-function setCalcMeat(m) {
-  calcMeat = m;
-  document.querySelectorAll('#meatPicker .chip').forEach(el => el.classList.toggle('sel', el.dataset.meat === m));
+  ['lose','maintain','gain'].forEach(k => {
+    const btn = document.getElementById(`gb-${k}`);
+    if (!btn) return;
+    btn.classList.toggle('goal--active', k===g);
+    btn.setAttribute('aria-checked', k===g ? 'true' : 'false');
+  });
   renderCalc();
 }
 
 function renderCalc() {
   const info = getDogInfo();
-  const cfg  = getCfg();
   const w = parseFloat(info.weight);
   const noW = document.getElementById('calcNoWeight');
   const body = document.getElementById('calcBody');
+  const formula = document.getElementById('calcFormula');
 
-  if (!w || w <= 0) { noW.style.display='block'; body.style.display='none'; return; }
-  noW.style.display='none'; body.style.display='block';
+  if (!w || w <= 0) { if(noW)noW.style.display='block'; if(body)body.style.display='none'; return; }
+  if(noW)noW.style.display='none'; if(body)body.style.display='block';
 
   const goal = GOAL_DATA[calcGoal];
   const rer  = Math.round(70 * Math.pow(w, 0.75));
   const dailyKcal = Math.round(rer * goal.factor);
-  const meals = goal.meals || cfg.times.length;
+  const meals = goal.meals || MEALS.length;
   const perKcal = Math.round(dailyKcal / meals);
+  const dryG = Math.round(perKcal / DRY_KCAL * 100);
 
-  const tipEl = document.getElementById('goalTip');
-  if (tipEl) tipEl.innerHTML =
-    `<span class="gt-dot" style="background:${goal.color}"></span>${goal.tip}`;
+  if (formula) formula.textContent = `RER × ${goal.factor}`;
 
-  document.getElementById('calcSummary').innerHTML =
-    `<div class="cs-row"><span>RER (พลังงานพัก)</span><strong>${rer} kcal</strong></div>` +
-    `<div class="cs-row"><span>ตัวคูณ (${goal.label})</span><strong>× ${goal.factor}</strong></div>` +
-    `<div class="cs-row"><span>พลังงานรวมต่อวัน</span><strong>${dailyKcal} kcal</strong></div>` +
-    `<div class="cs-row cs-per"><span>แนะนำ ${meals} มื้อ · ต่อมื้อ</span><strong style="color:${goal.color}">${perKcal} kcal</strong></div>`;
-
-  const mp = document.getElementById('meatPicker');
-  mp.innerHTML = Object.keys(MEAT_DATA).map(m =>
-    `<span class="chip${m===calcMeat?' sel':''}" data-meat="${m}" onclick="setCalcMeat('${m}')">${m}</span>`
-  ).join('');
-
-  let rows = '';
-  if (calcCombo === 'dry') {
-    const g = Math.round(perKcal / DRY_KCAL * 100);
-    rows = mealRow('อาหารเม็ด', g, perKcal, '#9B6B45');
-  } else {
-    const meatRatio = calcCombo === 'dry+meat' ? 0.25 : 0.20;
-    const meatKcal  = Math.round(perKcal * meatRatio);
-    const dryKcal   = calcCombo === 'dry+meat' ? perKcal - meatKcal : Math.round(perKcal * 0.75);
-    const meatKcalPer100 = MEAT_DATA[calcMeat]?.kcal || 165;
-    const dryG  = Math.round(dryKcal / DRY_KCAL * 100);
-    const meatG = Math.round(meatKcal / meatKcalPer100 * 100);
-    rows = mealRow('อาหารเม็ด', dryG, dryKcal, '#9B6B45') +
-           mealRow(calcMeat + ' (สุก · ต้ม/อบ)', meatG, meatKcal, '#5DA87A');
-    if (calcCombo === 'dry+meat+veg') {
-      const vegKcal = perKcal - dryKcal - meatKcal;
-      rows += mealRow('ผัก (แครอท/บร็อคโคลี่)', 15, vegKcal, '#a78bfa');
-    }
-  }
-
-  document.getElementById('calcResult').innerHTML =
-    `<div class="cr-head">ต่อ 1 มื้อ — ${meals} มื้อ/วัน (${perKcal} kcal/มื้อ)</div>${rows}` +
-    `<div class="cr-note">* น้ำหนักอาหาร = หลังปรุงสุก · อาหารเม็ด Small Breed Adult ~370 kcal/100g</div>`;
-}
-
-function mealRow(label, grams, kcal, color) {
-  return `<div class="cr-row">
-    <div class="cr-label">${label}</div>
-    <div class="cr-bar-wrap"><div class="cr-bar" style="width:${Math.min(100,grams*2)}%;background:${color}"></div></div>
-    <div class="cr-nums"><strong>${grams}g</strong> <span>${kcal} kcal</span></div>
-  </div>`;
+  // Single result block matching reference: per-meal kcal + dry-food grams + progress bar
+  const pct = Math.min(100, Math.round((dryG / 35) * 100)); // 35g ~= typical large portion → full bar
+  document.getElementById('calcResult').innerHTML = `
+    <div class="result" style="margin-top:var(--sp-3)">
+      <div class="result__row">
+        <div class="result__group">
+          <div class="label">${meals} มื้อ · ต่อมื้อ</div>
+          <div class="result__big">${perKcal}<sub>kcal</sub></div>
+        </div>
+        <div class="result__group" style="text-align:right">
+          <div class="label">อาหารเม็ด</div>
+          <div class="result__mid">${dryG}<sub>g</sub></div>
+        </div>
+      </div>
+      <div class="bar"><div class="bar__fill" style="width:${pct}%"></div></div>
+    </div>
+    <div style="margin-top:var(--sp-3);padding:var(--sp-3);background:rgba(126,146,122,.08);border-radius:var(--r-md);font-size:11.5px;color:var(--c-muted);line-height:1.5">
+      ${goal.tip}
+    </div>
+    <div style="margin-top:var(--sp-2);font-size:10.5px;color:var(--c-faint);font-style:italic">
+      RER = 70 × น้ำหนัก<sup>0.75</sup> · NRC 2006 · อาหารเม็ด Small Breed Adult ~370 kcal/100g
+    </div>`;
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────
 let dashMode = 'day';
 function setDash(m) {
   dashMode = m;
-  ['day','week','month'].forEach(k => document.getElementById(`dt-${k}`)?.classList.toggle('active', k===m));
+  ['day','week','month'].forEach(k => {
+    const btn = document.getElementById(`dt-${k}`);
+    if (!btn) return;
+    btn.classList.toggle('period__btn--active', k===m);
+    btn.setAttribute('aria-selected', k===m ? 'true' : 'false');
+  });
   renderDash();
 }
 
@@ -1195,52 +1263,88 @@ function renderDash() {
   const today = new Date();
   const mk = d => `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
   const cnt = log => MEALS.filter(m => { const f=asFed(log[m.id]); return f && !f.skipped; }).length;
+  const info = getDogInfo(); const w = parseFloat(info.weight);
+  const kcalTarget = w ? Math.round(70*Math.pow(w,.75)*1.6) : 0;
+  const perMealKcal = kcalTarget ? Math.round(kcalTarget / MEALS.length) : 0;
 
   if (dashMode === 'day') {
     const log = allLog[mk(today)] || {};
     const fed = cnt(log), total = MEALS.length;
-    const dots = MEALS.map((m,i) => {
+    const slots = MEALS.map((m,i) => {
       const f = asFed(log[m.id]);
-      const cls = f && f.skipped ? ' skipped' : f ? ' fed' : '';
-      const ic = f && f.skipped
-        ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`
-        : `<img src="img/time-${TIME_ASSET[i]||'morning'}.png" alt="" width="100%" height="100%">`;
-      return `<div class="db-dot-wrap"><div class="db-dot${cls}">${ic}</div><div class="db-dot-lbl">${m.label.replace('มื้อ','')}</div></div>`;
+      const doneCls = f && !f.skipped ? ' slot--done' : '';
+      const lbl = m.label.replace('มื้อ','');
+      const kcal = f && !f.skipped ? (perMealKcal || '✓') : (f && f.skipped ? '—' : '—');
+      return `
+        <div class="slot${doneCls}">
+          <div class="slot__icon"><img src="img/time-${TIME_ASSET[i]||'morning'}.png" alt="" width="22" height="22"></div>
+          <span class="slot__label">${lbl}</span>
+          <span class="slot__kcal">${kcal}</span>
+        </div>`;
     }).join('');
-    const info = getDogInfo(); const w = parseFloat(info.weight);
-    const kcalTarget = w ? Math.round(70*Math.pow(w,.75)*1.6) : 0;
-    const kcalDone = fed * (kcalTarget ? Math.round(kcalTarget/total) : 0);
-    const kcalBar = kcalTarget ? `
-      <div class="db-kcal-row">
-        <span>แคลอรี่วันนี้</span>
-        <span><strong>${kcalDone}</strong> / ${kcalTarget} kcal</span>
+    const kcalDone = fed * perMealKcal;
+    const totalBlock = kcalTarget ? `
+      <div class="dash__total">
+        <div class="dash__total-row">
+          <span class="label">แคลอรี่</span>
+          <span><span class="num">${kcalDone}</span> <span class="of">/ ${kcalTarget} kcal</span></span>
+        </div>
+        <div class="dash__progress"><i style="width:${Math.min(100,Math.round(kcalDone/kcalTarget*100))}%"></i></div>
+      </div>` : '';
+    el.className = 'dash';
+    el.innerHTML = `
+      <div class="dash__head">
+        <div>
+          <h3>วันนี้ · <span class="day-ref">${today.getDate()} ${MONTHS_S[today.getMonth()]}</span></h3>
+          <div class="dash__sub">${fed === total ? `ครบทุกมื้อแล้ว` : `กินไปแล้ว ${fed} จาก ${total} มื้อ`}</div>
+        </div>
       </div>
-      <div class="db-bar-wrap"><div class="db-bar" style="width:${Math.min(100,Math.round(kcalDone/kcalTarget*100))}%"></div></div>` : '';
-    el.innerHTML = `<div class="db-dots">${dots}</div>
-      <div class="db-summary"><strong>${fed}/${total}</strong></div>
-      ${kcalBar}`;
+      <div class="dash__slots">${slots}</div>
+      ${totalBlock}`;
 
   } else if (dashMode === 'week') {
-    let html = '<div class="db-week">';
+    // 7 days ending today
+    let cells = '';
+    let completeCnt = 0;
     for (let i=6; i>=0; i--) {
       const d = new Date(today); d.setDate(d.getDate()-i);
       const log = allLog[mk(d)] || {}, c = cnt(log);
-      const fill = c===MEALS.length?'full':c>0?'part':'';
-      html += `<div class="db-wday">
-        <div class="db-wcol${fill?' '+fill:''}">${c>0?c:''}</div>
-        <div class="db-wlbl">${DAYS_S[d.getDay()]}</div>
-      </div>`;
+      const isToday = i === 0;
+      let pillCls = '', pillText = '';
+      if (isToday) { pillCls = 'week-pill--today'; pillText = 'วันนี้'; }
+      else if (c === MEALS.length) { pillCls = 'week-pill--complete'; pillText = '✓'; completeCnt++; }
+      else if (c > 0) { pillCls = 'week-pill--partial'; pillText = `${c}/${MEALS.length}`; }
+      else { pillCls = ''; pillText = '—'; }
+      cells += `<div class="week-cell"><div class="week-pill ${pillCls}">${pillText}</div><span class="week-cell__lbl">${DAYS_S[d.getDay()]}</span></div>`;
     }
-    html += '</div>';
-    const weekFed = Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(d.getDate()-(6-i));return cnt(allLog[mk(d)]||{});});
-    const avg = (weekFed.reduce((a,b)=>a+b,0)/7).toFixed(1);
-    html += `<div class="db-summary">เฉลี่ย <strong>${avg}</strong> มื้อ/วัน · 7 วันที่ผ่านมา</div>`;
-    el.innerHTML = html;
+    // streak today (consecutive complete days back from today)
+    let streak = 0;
+    const cursor = new Date(today);
+    while (true) {
+      const k = mk(cursor);
+      if (cnt(allLog[k]||{}) >= MEALS.length) { streak++; cursor.setDate(cursor.getDate()-1); }
+      else break;
+    }
+    el.className = 'dash week-streak';
+    el.innerHTML = `
+      <div class="week-streak__head">
+        <div>
+          <div class="label">7 วันที่ผ่านมา</div>
+          <div><span class="big">${completeCnt}/7</span> <span class="sub">วันครบมื้อ</span></div>
+        </div>
+        <span class="streak-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3s4 4 4 8a4 4 0 01-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-4-1-5 0-1 1-2 1-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          ${streak} STREAK
+        </span>
+      </div>
+      <div class="week-row">${cells}</div>`;
 
   } else {
     const y = today.getFullYear(), mo = today.getMonth();
-    let full=0, part=0, miss=0, streak=0, cur=0;
-    let skipMeals=0, skipDays=0; // v2: count skips
+    let full=0, part=0, miss=0, maxStreak=0, cur=0;
+    let skipMeals=0, skipDays=0;
     for (let d=1; d<=today.getDate(); d++) {
       const log = allLog[`${y}-${mo+1}-${d}`]||{}, c=cnt(log);
       const daySkips = MEALS.filter(m=>{const f=asFed(log[m.id]);return f && f.skipped;}).length;
@@ -1249,22 +1353,32 @@ function renderDash() {
       if (c===MEALS.length){full++;cur++;}
       else if(c>0){part++;cur=0;}
       else{miss++;cur=0;}
-      streak=Math.max(streak,cur);
+      maxStreak=Math.max(maxStreak,cur);
     }
-    const skipRow = skipMeals > 0 ? `
-      <div class="db-skip-stat">
-        <span class="db-mico">💤</span>
-        <span>ไม่กิน <strong>${skipMeals}</strong> มื้อ · <strong>${skipDays}</strong> วัน — ดูแนวโน้มจากปฏิทินด้านบน</span>
-      </div>` : '';
+    const slots = [
+      { lbl:'ครบมื้อ', val: full, key:'complete' },
+      { lbl:'บางมื้อ', val: part, key:'partial' },
+      { lbl:'ขาด',     val: miss, key:'miss' },
+      { lbl:'สตรีคสูงสุด', val: maxStreak, key:'streak' },
+    ].map(s => `
+        <div class="slot${s.val>0 && (s.key==='complete'||s.key==='streak')?' slot--done':''}">
+          <div class="slot__icon"><img src="img/time-${s.key==='complete'?'morning':s.key==='partial'?'noon':s.key==='miss'?'night':'evening'}.png" alt="" width="22" height="22"></div>
+          <span class="slot__label">${s.lbl}</span>
+          <span class="slot__kcal">${s.val}</span>
+        </div>`).join('');
+    const skipNote = skipMeals > 0
+      ? `<div class="dash__sub" style="margin-top:8px;color:var(--c-rust)">ไม่กิน ${skipMeals} มื้อ · ${skipDays} วัน</div>`
+      : '';
+    el.className = 'dash';
     el.innerHTML = `
-      <div class="db-month-grid">
-        <div class="db-mstat"><span class="db-mico">✅</span><strong>${full}</strong><span>วันครบมื้อ</span></div>
-        <div class="db-mstat"><span class="db-mico">🟡</span><strong>${part}</strong><span>วันบางมื้อ</span></div>
-        <div class="db-mstat"><span class="db-mico">❌</span><strong>${miss}</strong><span>วันขาด</span></div>
-        <div class="db-mstat"><span class="db-mico">🔥</span><strong>${streak}</strong><span>วันติดต่อกัน</span></div>
+      <div class="dash__head">
+        <div>
+          <h3>เดือน${MONTHS_F[mo]}</h3>
+          <div class="dash__sub">รวมถึงวันนี้ · ${today.getDate()} วัน</div>
+        </div>
       </div>
-      ${skipRow}
-      <div class="db-summary">เดือน${MONTHS_S[mo]} ${y+543}</div>`;
+      <div class="dash__slots">${slots}</div>
+      ${skipNote}`;
   }
 }
 
@@ -1294,7 +1408,9 @@ function boot() {
   applyDarkMode();
   bindOverlayDismiss();
   renderHeader(); renderToday(); renderNotes(); renderSkipBanner();
-  renderInfo(); renderCalc(); makeCollapsible(); renderFoodProducts();
+  renderInfo(); renderCalc(); renderFoodProducts();
+  renderCanEat(); renderDanger(); renderTips();
+  renderCalendar(); renderDash();
   startSync();
   tickClock();
   setInterval(tickClock, 1000);
