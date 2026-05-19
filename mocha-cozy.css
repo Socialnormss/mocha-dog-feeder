@@ -1128,42 +1128,6 @@ input, textarea { font: inherit; color: inherit; }
 .hero__greet { font-family: var(--font-num); font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em; font-size: 13px; color: rgba(255,255,255,.65); margin-top: 2px; }
 
-/* meal progress strip — between hero and notes */
-.meal-progress {
-  margin: 0 var(--sp-5) var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--c-paper);
-  border-radius: var(--r-lg);
-  border: 1px solid var(--rule);
-  box-shadow: var(--shadow-soft);
-  display: flex; align-items: center; gap: var(--sp-3);
-}
-.meal-progress__label {
-  font-family: var(--font-serif); font-size: 13px; font-weight: 600;
-  color: var(--c-muted); flex-shrink: 0;
-}
-.meal-progress__dots {
-  display: flex; gap: 6px; flex: 1;
-}
-.meal-progress__dots i {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--c-latte); display: inline-block;
-  transition: background var(--t-fast), transform var(--t-fast);
-}
-.meal-progress__dots i.is-on {
-  background: var(--c-caramel);
-  transform: scale(1.05);
-}
-.meal-progress__count {
-  font-family: var(--font-num); font-variant-numeric: tabular-nums;
-  font-size: 18px; font-weight: 700; color: var(--c-mocha);
-  letter-spacing: -0.02em; flex-shrink: 0;
-}
-.meal-progress__count sub {
-  font-size: 12px; font-weight: 500; color: var(--c-muted); margin-left: 1px;
-  bottom: 0; vertical-align: baseline;
-}
-
 /* next-meal state: ครบทุกมื้อ */
 .hero__next-time.all { color: var(--c-sage-deep); font-weight: 600; }
 .hero__next-time.soon { color: var(--c-rust); font-weight: 600; }

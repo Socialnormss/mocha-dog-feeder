@@ -1118,42 +1118,36 @@ const TIPS_LIST = [
   { label:'ปรึกษาสัตวแพทย์',                sub:'ตรวจสุขภาพปีละ 1-2 ครั้ง' },
 ];
 
-function renderCanEat() {
-  const el = document.getElementById('canEatList'); if (!el) return;
-  el.innerHTML = CAN_EAT_LIST.map(f => `
-    <article class="chip">
-      <div class="chip__icon" style="background:${f.bg}"><img src="img/${f.img}" alt="" width="17" height="17"></div>
+function chipRow(item, opts = {}) {
+  // per-item .danger flag overrides; falls back to opts.danger default
+  const isDanger = (item.danger !== undefined) ? item.danger : !!opts.danger;
+  const danger = isDanger ? ' chip--danger' : '';
+  const iconBg = opts.iconBg || item.bg || 'var(--c-latte)';
+  const iconHtml = item.img
+    ? `<img src="img/${item.img}" alt="" width="17" height="17">`
+    : `<span style="color:var(--c-mocha);font-size:14px">${item.emoji || '•'}</span>`;
+  const tag = item.tag
+    ? `<span class="tag ${item.tagCls || ''}">${item.tag}</span>`
+    : '';
+  return `
+    <article class="chip${danger}">
+      <div class="chip__icon" style="background:${iconBg}">${iconHtml}</div>
       <div class="chip__body">
-        <div class="chip__label">${escHtml(f.label)}</div>
-        <div class="chip__sub">${escHtml(f.sub)}</div>
+        <div class="chip__label">${escHtml(item.label)}</div>
+        <div class="chip__sub">${escHtml(item.sub)}</div>
       </div>
-    </article>`).join('');
+      ${tag}
+    </article>`;
 }
 
-function renderDanger() {
-  const el = document.getElementById('dangerList'); if (!el) return;
-  el.innerHTML = DANGER_LIST.map(d => `
-    <article class="chip${d.danger?' chip--danger':''}">
-      <div class="chip__icon" style="background:rgba(199,122,90,.13)"><img src="img/${d.img}" alt="" width="17" height="17"></div>
-      <div class="chip__body">
-        <div class="chip__label">${escHtml(d.label)}</div>
-        <div class="chip__sub">${escHtml(d.sub)}</div>
-      </div>
-      <span class="tag ${d.tagCls}">${d.tag}</span>
-    </article>`).join('');
+function renderChipList(elId, list, opts) {
+  const el = document.getElementById(elId);
+  if (el) el.innerHTML = list.map(i => chipRow(i, opts)).join('');
 }
 
-function renderTips() {
-  const el = document.getElementById('tipsList'); if (!el) return;
-  el.innerHTML = TIPS_LIST.map(t => `
-    <article class="chip">
-      <div class="chip__icon" style="background:var(--c-latte);color:var(--c-mocha);font-size:14px">💡</div>
-      <div class="chip__body">
-        <div class="chip__label">${escHtml(t.label)}</div>
-        <div class="chip__sub">${escHtml(t.sub)}</div>
-      </div>
-    </article>`).join('');
-}
+function renderCanEat() { renderChipList('canEatList', CAN_EAT_LIST); }
+function renderDanger() { renderChipList('dangerList', DANGER_LIST, { iconBg: 'rgba(199,122,90,.13)', danger: true }); }
+function renderTips()   { renderChipList('tipsList',   TIPS_LIST.map(t => ({ ...t, emoji: '💡' }))); }
 
 // ── Nutrition search — filter chip rows + brand cards ───────────────
 function nutrSearch(q) {
